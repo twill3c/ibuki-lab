@@ -1,0 +1,16 @@
+{
+  "generated_from": "pipeline/ingest.py",
+  "co2_month_files": 95,
+  "ch4_month_files": 96,
+  "fixed_sites": 74,
+  "ship_band_sites": 21,
+  "sites_without_latitude": 0,
+  "co2_event_samples_total": 252686,
+  "co2_event_samples_rejected": 35331,
+  "co2_event_samples_retained": 217355,
+  "sites_with_both_gases": 94,
+  "latitude_range": [
+    -89.98,
+    82.4508
+  ]
+}

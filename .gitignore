@@ -1,0 +1,11 @@
+# 生データは配らない。取得手順と SHA-256 は data/LICENSE-DATA.md にある
+data/raw/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+node_modules/
+.next/
+out/
+.vercel/
