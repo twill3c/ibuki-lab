@@ -1,0 +1,177 @@
+{
+  "min_years": 20,
+  "permutations": 5000,
+  "sites_tested": 15,
+  "bands": {
+    "北緯45度以北": {
+      "sites": 6,
+      "positive": 5,
+      "significant_positive": 4,
+      "positive_adjusted": 6
+    },
+    "南半球": {
+      "sites": 4,
+      "positive": 1,
+      "significant_positive": 0,
+      "positive_adjusted": 1
+    },
+    "北半球 0-45度": {
+      "sites": 5,
+      "positive": 5,
+      "significant_positive": 1,
+      "positive_adjusted": 4
+    }
+  },
+  "sites": [
+    {
+      "code": "alt",
+      "latitude": 82.4508,
+      "years": 29,
+      "mean_amplitude": 18.611850263618187,
+      "slope_ppm_per_year": 0.051835490094193575,
+      "p_value": 0.03779244151169766,
+      "slope_adjusted_for_samples": 0.044675264217707525,
+      "slope_on_samples": -0.007090143930812343
+    },
+    {
+      "code": "asc",
+      "latitude": -7.9667,
+      "years": 26,
+      "mean_amplitude": 3.0655681925864062,
+      "slope_ppm_per_year": -0.038630251896148875,
+      "p_value": 0.04239152169566087,
+      "slope_adjusted_for_samples": -0.042038842747246834,
+      "slope_on_samples": 0.00714306968376299
+    },
+    {
+      "code": "brw",
+      "latitude": 71.323,
+      "years": 37,
+      "mean_amplitude": 20.034946263420682,
+      "slope_ppm_per_year": 0.11089556865704449,
+      "p_value": 0.0001999600079984003,
+      "slope_adjusted_for_samples": 0.10966073005697738,
+      "slope_on_samples": -0.0006264525150577116
+    },
+    {
+      "code": "cba",
+      "latitude": 55.21,
+      "years": 32,
+      "mean_amplitude": 17.657746781589676,
+      "slope_ppm_per_year": 0.023066387871030616,
+      "p_value": 0.4579084183163367,
+      "slope_adjusted_for_samples": 0.08259965656861099,
+      "slope_on_samples": -0.05028843060517532
+    },
+    {
+      "code": "hun",
+      "latitude": 46.9559,
+      "years": 22,
+      "mean_amplitude": 38.48721566205533,
+      "slope_ppm_per_year": -0.0414830118519576,
+      "p_value": 0.8090381923615277,
+      "slope_adjusted_for_samples": 0.06261302371489719,
+      "slope_on_samples": -0.7441810966988986
+    },
+    {
+      "code": "kum",
+      "latitude": 19.5608,
+      "years": 39,
+      "mean_amplitude": 8.295137775705163,
+      "slope_ppm_per_year": 0.01497554714629564,
+      "p_value": 0.49090181963607277,
+      "slope_adjusted_for_samples": -0.0029656478567471715,
+      "slope_on_samples": 0.010524094840195567
+    },
+    {
+      "code": "mid",
+      "latitude": 28.2186,
+      "years": 22,
+      "mean_amplitude": 9.714134710144934,
+      "slope_ppm_per_year": 0.0954948420271172,
+      "p_value": 0.0007998400319936012,
+      "slope_adjusted_for_samples": 0.09303949476220653,
+      "slope_on_samples": -0.017355730697812332
+    },
+    {
+      "code": "mlo",
+      "latitude": 19.5362,
+      "years": 41,
+      "mean_amplitude": 5.973312178553265,
+      "slope_ppm_per_year": 0.0067587462111634465,
+      "p_value": 0.26394721055788845,
+      "slope_adjusted_for_samples": 0.005414265057819858,
+      "slope_on_samples": -0.0010202149574243997
+    },
+    {
+      "code": "nwr",
+      "latitude": 40.0531,
+      "years": 38,
+      "mean_amplitude": 10.1700100406587,
+      "slope_ppm_per_year": 0.04241995459005484,
+      "p_value": 0.0619876024795041,
+      "slope_adjusted_for_samples": 0.04486946309467957,
+      "slope_on_samples": 0.00330244183222285
+    },
+    {
+      "code": "psa",
+      "latitude": -64.7742,
+      "years": 25,
+      "mean_amplitude": 1.7863878260869592,
+      "slope_ppm_per_year": -0.017036102644407868,
+      "p_value": 0.10417916416716656,
+      "slope_adjusted_for_samples": -0.01677656841549257,
+      "slope_on_samples": -0.0021088228884842647
+    },
+    {
+      "code": "smo",
+      "latitude": -14.2474,
+      "years": 34,
+      "mean_amplitude": 2.6243119493376073,
+      "slope_ppm_per_year": 0.03605998636630359,
+      "p_value": 0.08218356328734253,
+      "slope_adjusted_for_samples": 0.03348674356592096,
+      "slope_on_samples": -0.0010447728707782915
+    },
+    {
+      "code": "spo",
+      "latitude": -89.98,
+      "years": 27,
+      "mean_amplitude": 1.2551506377003219,
+      "slope_ppm_per_year": -0.016415551750936824,
+      "p_value": 0.0061987602479504095,
+      "slope_adjusted_for_samples": -0.02060870381359989,
+      "slope_on_samples": 0.004580618419563841
+    },
+    {
+      "code": "sum",
+      "latitude": 72.5962,
+      "years": 21,
+      "mean_amplitude": 16.10525489130435,
+      "slope_ppm_per_year": 0.07954418560424498,
+      "p_value": 0.03799240151969606,
+      "slope_adjusted_for_samples": 0.06282612290095925,
+      "slope_on_samples": 0.04906126348777298
+    },
+    {
+      "code": "wis",
+      "latitude": 29.9646,
+      "years": 23,
+      "mean_amplitude": 13.650264067422818,
+      "slope_ppm_per_year": 0.07712613335035355,
+      "p_value": 0.20595880823835233,
+      "slope_adjusted_for_samples": 0.09456769930606142,
+      "slope_on_samples": 0.03690301163049194
+    },
+    {
+      "code": "zep",
+      "latitude": 78.9067,
+      "years": 21,
+      "mean_amplitude": 19.528307322134395,
+      "slope_ppm_per_year": 0.15153276219171347,
+      "p_value": 0.0001999600079984003,
+      "slope_adjusted_for_samples": 0.1528323142445591,
+      "slope_on_samples": 0.0011727921404794573
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "generated_from": "pipeline/baseline.py",
+  "gas": "co2",
+  "n_examples": 805,
+  "n_sites": 65,
+  "n_groups": 57,
+  "coverage": {
+    "site_years_with_min_samples": 1926,
+    "site_years_fixed_sites": 1818,
+    "site_years_accepted": 805,
+    "site_years_dropped_incomplete": 1013,
+    "site_years_ship_bands_excluded": 108,
+    "sites_accepted": 65,
+    "groups_accepted": 57
+  },
+  "systems": {
+    "mean_predictor": {
+      "mae": 30.911206416245996,
+      "mae_per_example": 33.251519411897,
+      "median_ae_per_site": 22.859788456549936,
+      "worst_site_ae": 119.06429177377892,
+      "sites": 65,
+      "examples": 805
+    },
+    "median_predictor": {
+      "mae": 31.21190692307692,
+      "mae_per_example": 34.05298763975155,
+      "median_ae_per_site": 20.065499999999997,
+      "worst_site_ae": 126.2679,
+      "sites": 65,
+      "examples": 805
+    },
+    "harmonic_linear": {
+      "mae": 16.21158219618255,
+      "mae_per_example": 15.201132721054092,
+      "median_ae_per_site": 12.425066247773238,
+      "worst_site_ae": 107.00534167123044,
+      "sites": 65,
+      "examples": 805
+    },
+    "harmonic_knn": {
+      "mae": 10.954308044274603,
+      "mae_per_example": 11.68865242236025,
+      "median_ae_per_site": 8.350775,
+      "worst_site_ae": 51.80122153846154,
+      "sites": 65,
+      "examples": 805
+    },
+    "curve_knn": {
+      "mae": 12.670030715665655,
+      "mae_per_example": 13.129829698905649,
+      "median_ae_per_site": 9.767533333333331,
+      "worst_site_ae": 61.28779769230769,
+      "sites": 65,
+      "examples": 805
+    }
+  },
+  "best_system": "harmonic_knn",
+  "best_two_feature_system": "harmonic_knn",
+  "controls": {
+    "label_shuffle_mae": 36.09746081008526,
+    "label_shuffle_min": 29.95684994951501,
+    "label_shuffle_repeats": 20,
+    "label_shuffle_system": "harmonic_knn"
+  },
+  "p01_threshold_mae": 15.60595346153846
+}

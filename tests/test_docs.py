@@ -138,6 +138,75 @@ def test_t009_positive_control_shifted_number_is_caught():
         tampered.write_text(json.dumps(original, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+# ---------------------------------------------------------------- T-020 (G-14)
+
+BASELINE = ROOT / "data" / "baseline.json"
+
+# SPEC §7.3 の系の名前 → baseline.json のキー。行を増やしたらここも増やす。
+SPEC_SYSTEM_ROWS = {
+    "平均予測器": "mean_predictor",
+    "中央値予測器": "median_predictor",
+    "2 特徴・線形": "harmonic_linear",
+    "**2 特徴・kNN**": "harmonic_knn",
+    "24 次元・kNN": "curve_knn",
+}
+
+
+def _spec_system_table() -> dict:
+    """SPEC §7.3 の 4 列表から「系の名前 → (MAE地点, MAE例, 最悪)」を読む。"""
+    out = {}
+    for line in SPEC.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) == 4 and cells[0] in SPEC_SYSTEM_ROWS:
+            out[cells[0]] = cells[1:]
+    return out
+
+
+def test_t020_spec_baseline_table_matches_report():
+    """SPEC §7.3 の測定表が data/baseline.json と一致する(小数第 2 位まで)。
+
+    SPEC の保証粒度は表に書いた桁数までであり、それ以上を要求しない(HC-016)。
+    """
+    report = json.loads(BASELINE.read_text(encoding="utf-8"))
+    table = _spec_system_table()
+
+    missing = set(SPEC_SYSTEM_ROWS) - set(table)
+    assert not missing, f"SPEC §7.3 の表から行が消えている: {sorted(missing)}"
+
+    for label, key in SPEC_SYSTEM_ROWS.items():
+        written = [w.replace("**", "") for w in table[label]]
+        measured = report["systems"][key]
+        for value, field in zip(written, ("mae", "mae_per_example", "worst_site_ae")):
+            assert float(value) == round(measured[field], 2), (
+                f"§7.3 {label} / {field}: SPEC={value} baseline={measured[field]:.2f}"
+            )
+
+
+def test_t020_spec_control_and_threshold_match_report():
+    """陰性対照の値と P-01 の閾値も文書と一致する。"""
+    report = json.loads(BASELINE.read_text(encoding="utf-8"))
+    spec = SPEC.read_text(encoding="utf-8")
+
+    assert f"{report['controls']['label_shuffle_mae']:.2f} 度" in spec, "陰性対照の値が §7.3 と食い違う"
+    assert f"閾値 {report['p01_threshold_mae']:.2f} 度" in spec, "P-01 の閾値が §7.4 と食い違う"
+    assert str(report["n_examples"]) in spec and str(report["n_groups"]) in spec
+
+
+def test_t020_positive_control_shifted_baseline_is_caught():
+    """陽性対照: baseline.json の値をずらすと突合が撃つこと(HC-041)。"""
+    original = json.loads(BASELINE.read_text(encoding="utf-8"))
+    tampered = json.loads(BASELINE.read_text(encoding="utf-8"))
+    tampered["systems"]["harmonic_knn"]["mae"] += 1.0
+    try:
+        BASELINE.write_text(json.dumps(tampered, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        with pytest.raises(AssertionError):
+            test_t020_spec_baseline_table_matches_report()
+    finally:
+        BASELINE.write_text(json.dumps(original, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
 # ---------------------------------------------------------------- T-010 (G-14)
 
 def _parse_gates(spec_text: str) -> dict:
