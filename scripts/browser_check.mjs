@@ -37,6 +37,9 @@ const GATES = {
   "B-09": "N-01",
   "B-10": "N-03",
   "B-11": "F-01",
+  "B-12": "F-03",
+  "B-13": "F-08",
+  "B-14": "G-13",
 };
 
 const results = [];
@@ -186,6 +189,29 @@ async function main() {
     const normDistinct = new Set(normSouth).size;
     report("B-11", normDistinct > plainDistinct && noteAfter.includes("量は消えて"),
       `南緯80-90 の色 ${plainDistinct} 種 → ${normDistinct} 種 / 凡例が用途を書いている`);
+
+    // B-12: 画面②の切替が経路の座標を実際に変える(在存でなく到達 — HC-138)
+    const risingPath = () => page.$eval('[data-series="brw"]', (el) => el.getAttribute("d") ?? "");
+    const beforePath = await risingPath();
+    const detrend = await page.$('[data-testid="detrend-toggle"]');
+    await detrend.scrollIntoViewIfNeeded();
+    await detrend.check();
+    const afterPath = await risingPath();
+    const noteText = await page.$eval('[data-testid="rising-note"]', (el) => el.textContent ?? "");
+    await detrend.uncheck();
+    report("B-12", beforePath !== afterPath && beforePath.length > 100 && noteText.includes("脈が残る"),
+      `経路が ${beforePath.length} → ${afterPath.length} 文字で変化 / 注記が切り替わる`);
+
+    // B-13: 外部検証が独立の節として出ており、学習に使っていないと書いてある
+    const externalRows = await page.$$eval('[data-testid="external-table"] tbody tr', (els) => els.length);
+    const jmaRows = await page.$$eval('[data-testid="jma-table"] tbody tr', (els) => els.length);
+    const bodyText = await page.$eval("main", (el) => el.textContent ?? "");
+    report("B-13", externalRows === 3 && jmaRows === 3 && bodyText.includes("一度も使っていない"),
+      `対照表 ${externalRows} 行 / 地点表 ${jmaRows} 行 / 断りが本文にある`);
+
+    // B-14: 画面②の図も viewBox に収まる
+    const risingOver = await overflowing(page, "svg#rising");
+    report("B-14", risingOver.length === 0, `はみ出し ${risingOver.length} 件 ${risingOver.slice(0, 2).join(" ")}`);
 
     // B-05: 緯度梯子が描かれ、**振幅が北から南へ単調に潰れて戻る**
     const amps = await page.$$eval('[data-band]', (els) =>

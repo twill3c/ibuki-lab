@@ -1,0 +1,1162 @@
+{
+  "generated_from": "pipeline/external.py",
+  "model": {
+    "weights": "data/model_weights.json",
+    "trained_on_all_examples": true,
+    "generalisation_estimate_mae": 12.40258569057744,
+    "note": "NOAA の二系は**学習に使った例**なので絶対値は楽観的である。気象庁の絶対値と比べるのは L2 の leave-one-group-out 実測のほう"
+  },
+  "systems": {
+    "noaa_event_reference": {
+      "source": "event",
+      "mae": 8.340590793697544,
+      "median_ae": 6.476891962178549,
+      "worst_site_ae": 27.719372951253252,
+      "n_sites": 65,
+      "n_examples": 805,
+      "sites": [
+        {
+          "code": "alt",
+          "true_latitude": 82.4508,
+          "predicted_latitude": 75.51,
+          "predicted_sd": 4.14,
+          "mae": 6.94,
+          "years": 29
+        },
+        {
+          "code": "ams",
+          "true_latitude": -37.7983,
+          "predicted_latitude": -56.25,
+          "predicted_sd": 0.0,
+          "mae": 18.45,
+          "years": 1
+        },
+        {
+          "code": "amy",
+          "true_latitude": 36.5389,
+          "predicted_latitude": 36.26,
+          "predicted_sd": 0.0,
+          "mae": 0.28,
+          "years": 1
+        },
+        {
+          "code": "asc",
+          "true_latitude": -7.9667,
+          "predicted_latitude": -19.92,
+          "predicted_sd": 13.2,
+          "mae": 14.06,
+          "years": 26
+        },
+        {
+          "code": "ask",
+          "true_latitude": 23.2625,
+          "predicted_latitude": 22.04,
+          "predicted_sd": 4.21,
+          "mae": 3.98,
+          "years": 9
+        },
+        {
+          "code": "avi",
+          "true_latitude": 17.75,
+          "predicted_latitude": 18.1,
+          "predicted_sd": 5.85,
+          "mae": 4.81,
+          "years": 6
+        },
+        {
+          "code": "azr",
+          "true_latitude": 38.766,
+          "predicted_latitude": 34.35,
+          "predicted_sd": 4.58,
+          "mae": 4.58,
+          "years": 2
+        },
+        {
+          "code": "bal",
+          "true_latitude": 55.35,
+          "predicted_latitude": 47.29,
+          "predicted_sd": 4.92,
+          "mae": 8.06,
+          "years": 9
+        },
+        {
+          "code": "bkt",
+          "true_latitude": -0.202,
+          "predicted_latitude": 14.81,
+          "predicted_sd": 0.0,
+          "mae": 15.01,
+          "years": 1
+        },
+        {
+          "code": "bme",
+          "true_latitude": 32.368,
+          "predicted_latitude": 36.07,
+          "predicted_sd": 5.35,
+          "mae": 5.74,
+          "years": 3
+        },
+        {
+          "code": "bmw",
+          "true_latitude": 32.2647,
+          "predicted_latitude": 35.95,
+          "predicted_sd": 2.68,
+          "mae": 4.18,
+          "years": 5
+        },
+        {
+          "code": "brw",
+          "true_latitude": 71.323,
+          "predicted_latitude": 68.27,
+          "predicted_sd": 5.98,
+          "mae": 5.18,
+          "years": 37
+        },
+        {
+          "code": "bsc",
+          "true_latitude": 44.1776,
+          "predicted_latitude": 43.39,
+          "predicted_sd": 3.04,
+          "mae": 2.43,
+          "years": 5
+        },
+        {
+          "code": "cba",
+          "true_latitude": 55.21,
+          "predicted_latitude": 61.66,
+          "predicted_sd": 7.7,
+          "mae": 8.34,
+          "years": 32
+        },
+        {
+          "code": "cgo",
+          "true_latitude": -40.683,
+          "predicted_latitude": -35.14,
+          "predicted_sd": 25.01,
+          "mae": 22.33,
+          "years": 8
+        },
+        {
+          "code": "chr",
+          "true_latitude": 1.7,
+          "predicted_latitude": -14.63,
+          "predicted_sd": 6.04,
+          "mae": 16.33,
+          "years": 3
+        },
+        {
+          "code": "cib",
+          "true_latitude": 41.8139,
+          "predicted_latitude": 38.85,
+          "predicted_sd": 3.5,
+          "mae": 3.34,
+          "years": 5
+        },
+        {
+          "code": "cmo",
+          "true_latitude": 45.478,
+          "predicted_latitude": 41.08,
+          "predicted_sd": 2.93,
+          "mae": 4.43,
+          "years": 4
+        },
+        {
+          "code": "cpt",
+          "true_latitude": -34.3523,
+          "predicted_latitude": -50.32,
+          "predicted_sd": 0.0,
+          "mae": 15.96,
+          "years": 1
+        },
+        {
+          "code": "crz",
+          "true_latitude": -46.4337,
+          "predicted_latitude": -59.01,
+          "predicted_sd": 8.49,
+          "mae": 14.28,
+          "years": 8
+        },
+        {
+          "code": "dsi",
+          "true_latitude": 20.6992,
+          "predicted_latitude": 31.95,
+          "predicted_sd": 7.49,
+          "mae": 11.25,
+          "years": 4
+        },
+        {
+          "code": "eic",
+          "true_latitude": -27.1597,
+          "predicted_latitude": -7.38,
+          "predicted_sd": 9.32,
+          "mae": 19.78,
+          "years": 6
+        },
+        {
+          "code": "gmi",
+          "true_latitude": 13.386,
+          "predicted_latitude": 16.53,
+          "predicted_sd": 7.09,
+          "mae": 6.48,
+          "years": 15
+        },
+        {
+          "code": "hba",
+          "true_latitude": -75.55,
+          "predicted_latitude": -69.02,
+          "predicted_sd": 4.99,
+          "mae": 6.81,
+          "years": 13
+        },
+        {
+          "code": "hpb",
+          "true_latitude": 47.8011,
+          "predicted_latitude": 44.61,
+          "predicted_sd": 1.36,
+          "mae": 3.19,
+          "years": 6
+        },
+        {
+          "code": "hun",
+          "true_latitude": 46.9559,
+          "predicted_latitude": 47.92,
+          "predicted_sd": 4.49,
+          "mae": 3.48,
+          "years": 22
+        },
+        {
+          "code": "ice",
+          "true_latitude": 63.3998,
+          "predicted_latitude": 70.61,
+          "predicted_sd": 6.49,
+          "mae": 8.29,
+          "years": 8
+        },
+        {
+          "code": "izo",
+          "true_latitude": 28.309,
+          "predicted_latitude": 26.79,
+          "predicted_sd": 4.91,
+          "mae": 4.04,
+          "years": 15
+        },
+        {
+          "code": "key",
+          "true_latitude": 25.6654,
+          "predicted_latitude": 30.7,
+          "predicted_sd": 5.98,
+          "mae": 5.58,
+          "years": 5
+        },
+        {
+          "code": "kum",
+          "true_latitude": 19.5608,
+          "predicted_latitude": 23.42,
+          "predicted_sd": 5.3,
+          "mae": 5.51,
+          "years": 39
+        },
+        {
+          "code": "kzd",
+          "true_latitude": 44.0839,
+          "predicted_latitude": 42.23,
+          "predicted_sd": 7.23,
+          "mae": 5.83,
+          "years": 6
+        },
+        {
+          "code": "kzm",
+          "true_latitude": 43.25,
+          "predicted_latitude": 46.72,
+          "predicted_sd": 5.97,
+          "mae": 5.97,
+          "years": 2
+        },
+        {
+          "code": "lln",
+          "true_latitude": 23.47,
+          "predicted_latitude": 20.16,
+          "predicted_sd": 5.28,
+          "mae": 4.98,
+          "years": 6
+        },
+        {
+          "code": "lmp",
+          "true_latitude": 35.5181,
+          "predicted_latitude": 40.65,
+          "predicted_sd": 7.05,
+          "mae": 6.33,
+          "years": 11
+        },
+        {
+          "code": "mbc",
+          "true_latitude": 76.247,
+          "predicted_latitude": 65.57,
+          "predicted_sd": 6.77,
+          "mae": 10.68,
+          "years": 12
+        },
+        {
+          "code": "mex",
+          "true_latitude": 18.9841,
+          "predicted_latitude": 20.84,
+          "predicted_sd": 4.57,
+          "mae": 4.57,
+          "years": 2
+        },
+        {
+          "code": "mhd",
+          "true_latitude": 53.326,
+          "predicted_latitude": 52.22,
+          "predicted_sd": 9.37,
+          "mae": 7.84,
+          "years": 13
+        },
+        {
+          "code": "mid",
+          "true_latitude": 28.2186,
+          "predicted_latitude": 33.65,
+          "predicted_sd": 7.14,
+          "mae": 7.71,
+          "years": 22
+        },
+        {
+          "code": "mlo",
+          "true_latitude": 19.5362,
+          "predicted_latitude": 12.48,
+          "predicted_sd": 4.61,
+          "mae": 7.26,
+          "years": 41
+        },
+        {
+          "code": "nat",
+          "true_latitude": -5.7952,
+          "predicted_latitude": -3.06,
+          "predicted_sd": 10.16,
+          "mae": 10.16,
+          "years": 2
+        },
+        {
+          "code": "nmb",
+          "true_latitude": -23.58,
+          "predicted_latitude": -9.07,
+          "predicted_sd": 14.41,
+          "mae": 18.76,
+          "years": 9
+        },
+        {
+          "code": "nwr",
+          "true_latitude": 40.0531,
+          "predicted_latitude": 33.09,
+          "predicted_sd": 6.99,
+          "mae": 8.1,
+          "years": 38
+        },
+        {
+          "code": "oxk",
+          "true_latitude": 50.0301,
+          "predicted_latitude": 38.99,
+          "predicted_sd": 4.87,
+          "mae": 11.04,
+          "years": 6
+        },
+        {
+          "code": "pal",
+          "true_latitude": 67.9733,
+          "predicted_latitude": 55.91,
+          "predicted_sd": 5.59,
+          "mae": 12.06,
+          "years": 13
+        },
+        {
+          "code": "psa",
+          "true_latitude": -64.7742,
+          "predicted_latitude": -59.52,
+          "predicted_sd": 10.63,
+          "mae": 7.89,
+          "years": 25
+        },
+        {
+          "code": "pta",
+          "true_latitude": 38.9546,
+          "predicted_latitude": 44.34,
+          "predicted_sd": 5.96,
+          "mae": 7.3,
+          "years": 3
+        },
+        {
+          "code": "rpb",
+          "true_latitude": 13.165,
+          "predicted_latitude": 16.55,
+          "predicted_sd": 4.83,
+          "mae": 4.41,
+          "years": 17
+        },
+        {
+          "code": "sdz",
+          "true_latitude": 40.65,
+          "predicted_latitude": 43.33,
+          "predicted_sd": 0.0,
+          "mae": 2.68,
+          "years": 1
+        },
+        {
+          "code": "sey",
+          "true_latitude": -4.6824,
+          "predicted_latitude": -1.53,
+          "predicted_sd": 10.1,
+          "mae": 8.24,
+          "years": 16
+        },
+        {
+          "code": "sgp",
+          "true_latitude": 36.607,
+          "predicted_latitude": 39.84,
+          "predicted_sd": 3.41,
+          "mae": 3.7,
+          "years": 12
+        },
+        {
+          "code": "shm",
+          "true_latitude": 52.7112,
+          "predicted_latitude": 61.49,
+          "predicted_sd": 6.92,
+          "mae": 8.78,
+          "years": 9
+        },
+        {
+          "code": "smo",
+          "true_latitude": -14.2474,
+          "predicted_latitude": -27.63,
+          "predicted_sd": 15.19,
+          "mae": 16.33,
+          "years": 34
+        },
+        {
+          "code": "spo",
+          "true_latitude": -89.98,
+          "predicted_latitude": -67.18,
+          "predicted_sd": 12.12,
+          "mae": 22.8,
+          "years": 27
+        },
+        {
+          "code": "stm",
+          "true_latitude": 66.0,
+          "predicted_latitude": 65.39,
+          "predicted_sd": 5.24,
+          "mae": 4.51,
+          "years": 18
+        },
+        {
+          "code": "sum",
+          "true_latitude": 72.5962,
+          "predicted_latitude": 70.65,
+          "predicted_sd": 3.14,
+          "mae": 3.11,
+          "years": 21
+        },
+        {
+          "code": "syo",
+          "true_latitude": -69.0125,
+          "predicted_latitude": -69.04,
+          "predicted_sd": 4.36,
+          "mae": 3.32,
+          "years": 4
+        },
+        {
+          "code": "tap",
+          "true_latitude": 36.7376,
+          "predicted_latitude": 37.06,
+          "predicted_sd": 5.9,
+          "mae": 4.49,
+          "years": 7
+        },
+        {
+          "code": "thd",
+          "true_latitude": 41.0541,
+          "predicted_latitude": 35.8,
+          "predicted_sd": 5.87,
+          "mae": 6.22,
+          "years": 8
+        },
+        {
+          "code": "tik",
+          "true_latitude": 71.5965,
+          "predicted_latitude": 68.08,
+          "predicted_sd": 2.94,
+          "mae": 3.88,
+          "years": 5
+        },
+        {
+          "code": "ush",
+          "true_latitude": -54.8484,
+          "predicted_latitude": -27.13,
+          "predicted_sd": 4.8,
+          "mae": 27.72,
+          "years": 3
+        },
+        {
+          "code": "uta",
+          "true_latitude": 39.9018,
+          "predicted_latitude": 32.83,
+          "predicted_sd": 7.24,
+          "mae": 8.69,
+          "years": 15
+        },
+        {
+          "code": "uum",
+          "true_latitude": 44.4516,
+          "predicted_latitude": 50.88,
+          "predicted_sd": 5.55,
+          "mae": 6.72,
+          "years": 13
+        },
+        {
+          "code": "wis",
+          "true_latitude": 29.9646,
+          "predicted_latitude": 35.04,
+          "predicted_sd": 7.16,
+          "mae": 5.83,
+          "years": 23
+        },
+        {
+          "code": "wlg",
+          "true_latitude": 36.2879,
+          "predicted_latitude": 35.22,
+          "predicted_sd": 6.26,
+          "mae": 4.91,
+          "years": 12
+        },
+        {
+          "code": "zep",
+          "true_latitude": 78.9067,
+          "predicted_latitude": 73.53,
+          "predicted_sd": 6.27,
+          "mae": 6.2,
+          "years": 21
+        }
+      ]
+    },
+    "noaa_monthly_control": {
+      "source": "month",
+      "mae": 12.394224265425645,
+      "median_ae": 9.324516940307618,
+      "worst_site_ae": 44.421207119024366,
+      "n_sites": 65,
+      "n_examples": 1698,
+      "sites": [
+        {
+          "code": "alt",
+          "true_latitude": 82.4508,
+          "predicted_latitude": 64.53,
+          "predicted_sd": 4.39,
+          "mae": 17.92,
+          "years": 38
+        },
+        {
+          "code": "ams",
+          "true_latitude": -37.7983,
+          "predicted_latitude": -64.74,
+          "predicted_sd": 5.74,
+          "mae": 26.94,
+          "years": 7
+        },
+        {
+          "code": "amy",
+          "true_latitude": 36.5389,
+          "predicted_latitude": 48.29,
+          "predicted_sd": 13.06,
+          "mae": 16.54,
+          "years": 9
+        },
+        {
+          "code": "asc",
+          "true_latitude": -7.9667,
+          "predicted_latitude": -52.39,
+          "predicted_sd": 7.2,
+          "mae": 44.42,
+          "years": 42
+        },
+        {
+          "code": "ask",
+          "true_latitude": 23.2625,
+          "predicted_latitude": 16.34,
+          "predicted_sd": 4.56,
+          "mae": 7.35,
+          "years": 22
+        },
+        {
+          "code": "avi",
+          "true_latitude": 17.75,
+          "predicted_latitude": 11.55,
+          "predicted_sd": 4.88,
+          "mae": 6.7,
+          "years": 9
+        },
+        {
+          "code": "azr",
+          "true_latitude": 38.766,
+          "predicted_latitude": 39.53,
+          "predicted_sd": 13.48,
+          "mae": 10.65,
+          "years": 28
+        },
+        {
+          "code": "bal",
+          "true_latitude": 55.35,
+          "predicted_latitude": 53.33,
+          "predicted_sd": 7.39,
+          "mae": 6.64,
+          "years": 15
+        },
+        {
+          "code": "bkt",
+          "true_latitude": -0.202,
+          "predicted_latitude": 10.71,
+          "predicted_sd": 15.5,
+          "mae": 16.74,
+          "years": 19
+        },
+        {
+          "code": "bme",
+          "true_latitude": 32.368,
+          "predicted_latitude": 38.29,
+          "predicted_sd": 7.49,
+          "mae": 7.52,
+          "years": 18
+        },
+        {
+          "code": "bmw",
+          "true_latitude": 32.2647,
+          "predicted_latitude": 36.33,
+          "predicted_sd": 8.96,
+          "mae": 7.52,
+          "years": 34
+        },
+        {
+          "code": "brw",
+          "true_latitude": 71.323,
+          "predicted_latitude": 66.16,
+          "predicted_sd": 4.97,
+          "mae": 5.62,
+          "years": 54
+        },
+        {
+          "code": "bsc",
+          "true_latitude": 44.1776,
+          "predicted_latitude": 44.04,
+          "predicted_sd": 7.62,
+          "mae": 6.23,
+          "years": 16
+        },
+        {
+          "code": "cba",
+          "true_latitude": 55.21,
+          "predicted_latitude": 65.21,
+          "predicted_sd": 4.14,
+          "mae": 10.06,
+          "years": 39
+        },
+        {
+          "code": "cgo",
+          "true_latitude": -40.683,
+          "predicted_latitude": -68.94,
+          "predicted_sd": 4.33,
+          "mae": 28.25,
+          "years": 41
+        },
+        {
+          "code": "chr",
+          "true_latitude": 1.7,
+          "predicted_latitude": -18.11,
+          "predicted_sd": 10.05,
+          "mae": 19.81,
+          "years": 23
+        },
+        {
+          "code": "cib",
+          "true_latitude": 41.8139,
+          "predicted_latitude": 34.8,
+          "predicted_sd": 12.13,
+          "mae": 8.99,
+          "years": 14
+        },
+        {
+          "code": "cmo",
+          "true_latitude": 45.478,
+          "predicted_latitude": 39.82,
+          "predicted_sd": 8.47,
+          "mae": 9.0,
+          "years": 13
+        },
+        {
+          "code": "cpt",
+          "true_latitude": -34.3523,
+          "predicted_latitude": -63.98,
+          "predicted_sd": 6.2,
+          "mae": 29.63,
+          "years": 10
+        },
+        {
+          "code": "crz",
+          "true_latitude": -46.4337,
+          "predicted_latitude": -66.01,
+          "predicted_sd": 6.62,
+          "mae": 19.58,
+          "years": 29
+        },
+        {
+          "code": "dsi",
+          "true_latitude": 20.6992,
+          "predicted_latitude": 42.09,
+          "predicted_sd": 8.85,
+          "mae": 21.39,
+          "years": 13
+        },
+        {
+          "code": "eic",
+          "true_latitude": -27.1597,
+          "predicted_latitude": -46.1,
+          "predicted_sd": 14.74,
+          "mae": 20.55,
+          "years": 19
+        },
+        {
+          "code": "gmi",
+          "true_latitude": 13.386,
+          "predicted_latitude": 8.99,
+          "predicted_sd": 6.53,
+          "mae": 6.75,
+          "years": 33
+        },
+        {
+          "code": "hba",
+          "true_latitude": -75.55,
+          "predicted_latitude": -71.24,
+          "predicted_sd": 6.23,
+          "mae": 4.63,
+          "years": 31
+        },
+        {
+          "code": "hpb",
+          "true_latitude": 47.8011,
+          "predicted_latitude": 46.57,
+          "predicted_sd": 5.68,
+          "mae": 4.36,
+          "years": 19
+        },
+        {
+          "code": "hun",
+          "true_latitude": 46.9559,
+          "predicted_latitude": 43.24,
+          "predicted_sd": 5.26,
+          "mae": 5.11,
+          "years": 32
+        },
+        {
+          "code": "ice",
+          "true_latitude": 63.3998,
+          "predicted_latitude": 64.94,
+          "predicted_sd": 4.27,
+          "mae": 3.67,
+          "years": 24
+        },
+        {
+          "code": "izo",
+          "true_latitude": 28.309,
+          "predicted_latitude": 18.16,
+          "predicted_sd": 6.85,
+          "mae": 10.61,
+          "years": 33
+        },
+        {
+          "code": "key",
+          "true_latitude": 25.6654,
+          "predicted_latitude": 20.64,
+          "predicted_sd": 8.34,
+          "mae": 7.65,
+          "years": 49
+        },
+        {
+          "code": "kum",
+          "true_latitude": 19.5608,
+          "predicted_latitude": 18.75,
+          "predicted_sd": 6.12,
+          "mae": 4.9,
+          "years": 48
+        },
+        {
+          "code": "kzd",
+          "true_latitude": 44.0839,
+          "predicted_latitude": 46.75,
+          "predicted_sd": 11.51,
+          "mae": 9.09,
+          "years": 9
+        },
+        {
+          "code": "kzm",
+          "true_latitude": 43.25,
+          "predicted_latitude": 52.98,
+          "predicted_sd": 7.17,
+          "mae": 10.46,
+          "years": 9
+        },
+        {
+          "code": "lln",
+          "true_latitude": 23.47,
+          "predicted_latitude": 18.44,
+          "predicted_sd": 10.82,
+          "mae": 8.56,
+          "years": 18
+        },
+        {
+          "code": "lmp",
+          "true_latitude": 35.5181,
+          "predicted_latitude": 47.08,
+          "predicted_sd": 7.35,
+          "mae": 12.0,
+          "years": 19
+        },
+        {
+          "code": "mbc",
+          "true_latitude": 76.247,
+          "predicted_latitude": 60.93,
+          "predicted_sd": 3.89,
+          "mae": 15.31,
+          "years": 16
+        },
+        {
+          "code": "mex",
+          "true_latitude": 18.9841,
+          "predicted_latitude": 14.37,
+          "predicted_sd": 4.39,
+          "mae": 4.96,
+          "years": 15
+        },
+        {
+          "code": "mhd",
+          "true_latitude": 53.326,
+          "predicted_latitude": 60.86,
+          "predicted_sd": 5.37,
+          "mae": 8.35,
+          "years": 33
+        },
+        {
+          "code": "mid",
+          "true_latitude": 28.2186,
+          "predicted_latitude": 28.21,
+          "predicted_sd": 8.37,
+          "mae": 6.56,
+          "years": 40
+        },
+        {
+          "code": "mlo",
+          "true_latitude": 19.5362,
+          "predicted_latitude": 9.42,
+          "predicted_sd": 4.08,
+          "mae": 10.15,
+          "years": 50
+        },
+        {
+          "code": "nat",
+          "true_latitude": -5.7952,
+          "predicted_latitude": -46.28,
+          "predicted_sd": 9.04,
+          "mae": 40.48,
+          "years": 7
+        },
+        {
+          "code": "nmb",
+          "true_latitude": -23.58,
+          "predicted_latitude": -43.69,
+          "predicted_sd": 14.42,
+          "mae": 20.74,
+          "years": 17
+        },
+        {
+          "code": "nwr",
+          "true_latitude": 40.0531,
+          "predicted_latitude": 29.93,
+          "predicted_sd": 10.15,
+          "mae": 11.74,
+          "years": 56
+        },
+        {
+          "code": "oxk",
+          "true_latitude": 50.0301,
+          "predicted_latitude": 47.54,
+          "predicted_sd": 7.62,
+          "mae": 6.37,
+          "years": 15
+        },
+        {
+          "code": "pal",
+          "true_latitude": 67.9733,
+          "predicted_latitude": 63.21,
+          "predicted_sd": 5.35,
+          "mae": 5.58,
+          "years": 23
+        },
+        {
+          "code": "psa",
+          "true_latitude": -64.7742,
+          "predicted_latitude": -68.37,
+          "predicted_sd": 5.76,
+          "mae": 5.92,
+          "years": 46
+        },
+        {
+          "code": "pta",
+          "true_latitude": 38.9546,
+          "predicted_latitude": 43.93,
+          "predicted_sd": 9.9,
+          "mae": 9.32,
+          "years": 8
+        },
+        {
+          "code": "rpb",
+          "true_latitude": 13.165,
+          "predicted_latitude": 11.73,
+          "predicted_sd": 4.16,
+          "mae": 3.26,
+          "years": 36
+        },
+        {
+          "code": "sdz",
+          "true_latitude": 40.65,
+          "predicted_latitude": 58.14,
+          "predicted_sd": 6.93,
+          "mae": 17.49,
+          "years": 5
+        },
+        {
+          "code": "sey",
+          "true_latitude": -4.6824,
+          "predicted_latitude": -14.68,
+          "predicted_sd": 10.49,
+          "mae": 11.66,
+          "years": 41
+        },
+        {
+          "code": "sgp",
+          "true_latitude": 36.607,
+          "predicted_latitude": 38.74,
+          "predicted_sd": 12.66,
+          "mae": 9.9,
+          "years": 21
+        },
+        {
+          "code": "shm",
+          "true_latitude": 52.7112,
+          "predicted_latitude": 67.17,
+          "predicted_sd": 3.54,
+          "mae": 14.46,
+          "years": 30
+        },
+        {
+          "code": "smo",
+          "true_latitude": -14.2474,
+          "predicted_latitude": -51.61,
+          "predicted_sd": 8.52,
+          "mae": 37.36,
+          "years": 51
+        },
+        {
+          "code": "spo",
+          "true_latitude": -89.98,
+          "predicted_latitude": -71.31,
+          "predicted_sd": 4.27,
+          "mae": 18.67,
+          "years": 47
+        },
+        {
+          "code": "stm",
+          "true_latitude": 66.0,
+          "predicted_latitude": 62.99,
+          "predicted_sd": 3.99,
+          "mae": 3.51,
+          "years": 26
+        },
+        {
+          "code": "sum",
+          "true_latitude": 72.5962,
+          "predicted_latitude": 64.12,
+          "predicted_sd": 2.76,
+          "mae": 8.48,
+          "years": 23
+        },
+        {
+          "code": "syo",
+          "true_latitude": -69.0125,
+          "predicted_latitude": -72.28,
+          "predicted_sd": 4.83,
+          "mae": 4.83,
+          "years": 36
+        },
+        {
+          "code": "tap",
+          "true_latitude": 36.7376,
+          "predicted_latitude": 48.28,
+          "predicted_sd": 13.68,
+          "mae": 15.31,
+          "years": 33
+        },
+        {
+          "code": "thd",
+          "true_latitude": 41.0541,
+          "predicted_latitude": 41.05,
+          "predicted_sd": 10.31,
+          "mae": 8.77,
+          "years": 13
+        },
+        {
+          "code": "tik",
+          "true_latitude": 71.5965,
+          "predicted_latitude": 69.44,
+          "predicted_sd": 2.89,
+          "mae": 2.88,
+          "years": 6
+        },
+        {
+          "code": "ush",
+          "true_latitude": -54.8484,
+          "predicted_latitude": -48.86,
+          "predicted_sd": 6.46,
+          "mae": 7.23,
+          "years": 17
+        },
+        {
+          "code": "uta",
+          "true_latitude": 39.9018,
+          "predicted_latitude": 30.46,
+          "predicted_sd": 9.29,
+          "mae": 11.13,
+          "years": 32
+        },
+        {
+          "code": "uum",
+          "true_latitude": 44.4516,
+          "predicted_latitude": 60.71,
+          "predicted_sd": 5.15,
+          "mae": 16.26,
+          "years": 30
+        },
+        {
+          "code": "wis",
+          "true_latitude": 29.9646,
+          "predicted_latitude": 44.21,
+          "predicted_sd": 7.37,
+          "mae": 14.25,
+          "years": 28
+        },
+        {
+          "code": "wlg",
+          "true_latitude": 36.2879,
+          "predicted_latitude": 38.95,
+          "predicted_sd": 8.14,
+          "mae": 7.54,
+          "years": 32
+        },
+        {
+          "code": "zep",
+          "true_latitude": 78.9067,
+          "predicted_latitude": 67.59,
+          "predicted_sd": 3.23,
+          "mae": 11.31,
+          "years": 29
+        }
+      ]
+    },
+    "jma_holdout": {
+      "source": "month",
+      "mae": 11.420216800753842,
+      "median_ae": 9.073401482635076,
+      "worst_site_ae": 17.33388025094797,
+      "n_sites": 3,
+      "n_examples": 93,
+      "sites": [
+        {
+          "code": "mnm",
+          "true_latitude": 24.2833,
+          "predicted_latitude": 15.91,
+          "predicted_sd": 6.22,
+          "mae": 9.07,
+          "years": 30
+        },
+        {
+          "code": "ryo",
+          "true_latitude": 39.0333,
+          "predicted_latitude": 56.37,
+          "predicted_sd": 6.73,
+          "mae": 17.33,
+          "years": 37
+        },
+        {
+          "code": "yon",
+          "true_latitude": 24.4667,
+          "predicted_latitude": 30.53,
+          "predicted_sd": 6.92,
+          "mae": 7.85,
+          "years": 26
+        }
+      ]
+    }
+  },
+  "decomposition": {
+    "product_effect_deg": 4.0536334717281015,
+    "network_effect_deg": -0.9740074646718035,
+    "note": "資料形の効果 = NOAA の月次 − NOAA の event(網が同じ・資料形だけ違う)。網の効果 = 気象庁 − NOAA の月次(資料形が同じ・網だけ違う)"
+  },
+  "jma_coverage": {
+    "ryo": {
+      "years_with_any_month": 38,
+      "years_accepted": 37,
+      "years_dropped_incomplete": 1,
+      "year_min": 1987,
+      "year_max": 2024,
+      "months_total": 455
+    },
+    "mnm": {
+      "years_with_any_month": 32,
+      "years_accepted": 30,
+      "years_dropped_incomplete": 2,
+      "year_min": 1994,
+      "year_max": 2024,
+      "months_total": 381
+    },
+    "yon": {
+      "years_with_any_month": 28,
+      "years_accepted": 26,
+      "years_dropped_incomplete": 2,
+      "year_min": 1997,
+      "year_max": 2023,
+      "months_total": 326
+    }
+  },
+  "stations": {
+    "ryo": {
+      "name": "綾里",
+      "latitude": 39.03333333333333,
+      "longitude": 141.81666666666666,
+      "since": 1987,
+      "source": "https://www.data.jma.go.jp/env/ghg_obs/station/",
+      "note": "岩手県大船渡市。2002 年に観測点が移転し、標高が 230m → 260m に変わっている"
+    },
+    "mnm": {
+      "name": "南鳥島",
+      "latitude": 24.283333333333335,
+      "longitude": 153.98333333333332,
+      "since": 1993,
+      "source": "https://www.data.jma.go.jp/env/ghg_obs/station/",
+      "note": "東京から南東へ約 2,000 km の孤島。GAW 全球観測所"
+    },
+    "yon": {
+      "name": "与那国島",
+      "latitude": 24.466666666666665,
+      "longitude": 123.01666666666667,
+      "since": 1997,
+      "source": "https://www.data.jma.go.jp/env/ghg_obs/station/",
+      "note": "沖縄県八重山郡。観測は 2024 年 3 月末で終了。南鳥島とほぼ同緯度で経度が 31 度違う"
+    }
+  }
+}

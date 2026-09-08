@@ -2,17 +2,20 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import BreathingEarth from "./BreathingEarth";
+import RisingBreath from "./RisingBreath";
 import type { Screen1 } from "../lib/breathing";
+import type { Screen2 } from "../lib/rising";
 
 // 静的書き出しなので、データはビルド時に読んで埋め込む。
 // 実行時に外へ取りに行かない(N-01)。
-function loadScreen1(): Screen1 {
-  const path = join(process.cwd(), "public", "data", "screen1.json");
-  return JSON.parse(readFileSync(path, "utf8")) as Screen1;
+function load<T>(name: string): T {
+  const path = join(process.cwd(), "public", "data", name);
+  return JSON.parse(readFileSync(path, "utf8")) as T;
 }
 
 export default function Page() {
-  const data = loadScreen1();
+  const screen1 = load<Screen1>("screen1.json");
+  const screen2 = load<Screen2>("screen2.json");
 
   return (
     <main>
@@ -27,7 +30,9 @@ export default function Page() {
         その脈を絵にする。
       </p>
 
-      <BreathingEarth data={data} />
+      <BreathingEarth data={screen1} />
+
+      <RisingBreath data={screen2} />
 
       <footer className="fleet">
         <p>

@@ -49,3 +49,23 @@ NOAA の警告(README §4)もそのまま引き受ける —— 標準ガスの�
 `data/raw/` の tar と展開物は**リポジトリに含めない**(`.gitignore`)。
 再現手順は README に置き、上表の SHA-256 で同一性を確かめる。
 公開するのは、そこから導いた集計と模型の重みだけである。
+
+### 気象庁 CSV の取得(2026-09-09 実施)
+
+```bash
+mkdir -p data/raw/jma
+for s in ryo mnm yon; do
+  curl -o "data/raw/jma/co2_monthave_$s.csv" \
+    "https://www.data.jma.go.jp/ghg/kanshi/obs/co2_monthave_$s.csv"
+done
+```
+
+文字コードは cp932。座標は気象庁の観測地点一覧
+(<https://www.data.jma.go.jp/env/ghg_obs/station/>)の度分表記から取り、
+`pipeline/jma.py` が度分と小数の両方を持って突合する。
+
+| 地点 | 緯度 | 経度 | 観測期間 |
+|---|---|---|---|
+| 綾里 | 39°02'N | 141°49'E | 1987- |
+| 南鳥島 | 24°17'N | 153°59'E | 1993- |
+| 与那国島 | 24°28'N | 123°01'E | 1997-2024/3(終了) |
