@@ -51,6 +51,29 @@
 採取密度の交絡(標本が少ないほど山谷が雑音で開く)は主張と同じ向きに効くので、
 標本数を共変量に入れて測り直しても残ることを確かめてある。南極では逆に有意に減っている。
 
+## ディープラーニングは、2 特徴の回帰に勝てなかった(L2 実測 2026-09-08)
+
+**事前登録した予測 P-02 が当たった。** 曲線 24 点を 1D CNN(JAX・521 パラメータ)に
+食わせても、「振幅と位相の 2 特徴」に対する k 近傍を上回れない。
+
+| 系 | MAE(地点) |
+|---|---|
+| 振幅と位相の 2 特徴・kNN | **10.95** |
+| 1D CNN(CO2 のみ) | 12.40 |
+
+負けを主張する前に、負けを作りかねないものを潰した。
+
+- **打ち切りのせいではない。** 学習の予算を 3 倍にしても 11.98 → 11.69 で、
+  事前に決めた閾値 0.35 度より小さくしか動かない
+- **学習率のせいではない。** 3 通り試してどれも 11.98〜12.08 で、相手に届かない。
+  学習率は**内側検証だけで選んだ**(試験の成績を見て選べば、それはもう成績ではない)
+- **模型が壊れていたせいでもない。** 第一層の tanh が初期時点で 51.3% 飽和していて
+  振幅を潰していたのを見つけ、直してから測り直している(飽和率 1.2%)
+
+**一方 CH4 を第 2 チャンネルに足すと下がった(11.69 → 10.76)。これは事前登録 P-03 が
+外れた側**である。ただし種による幅が 2.63 → 0.40 と激減しており、
+**緯度の情報が増えたのか学習が安定しただけかは、この測定では切り分けていない。**
+
 詳細と、言えないことの範囲は [SPEC.md](SPEC.md) §7 にある。
 
 ## 手元で回す
@@ -69,8 +92,23 @@ tar -xzf data/raw/ch4_surface-flask_ccgg_text.tar.gz -C data/raw/ext
 
 python pipeline/ingest.py            # data/census.json を作り直す
 python -m pipeline.report_bands      # 船舶帯の検算の内訳を出す
-python -m pytest                     # 検査
 ```
+
+学習(L2 以降)には JAX が要る。**このシェルは `VIRTUAL_ENV` を別プロジェクトから
+引き継ぐ**ので、専用の venv を作り、インタプリタを絶対名で呼ぶ:
+
+```bash
+"C:/Users/<user>/AppData/Local/Programs/Python/Python314/python.exe" -m venv .venv
+.venv/Scripts/python.exe -m pip install -r requirements.txt pytest
+.venv/Scripts/python.exe -m pipeline.baseline      # data/baseline.json
+.venv/Scripts/python.exe -m pipeline.experiment    # data/model.json(数十分)
+.venv/Scripts/python.exe -m pytest                 # 検査
+```
+
+**JAX の起動時に `Windows fatal exception: access violation` と長い stack が出るが、
+これは無害である。** jaxlib が CPU の機能を探る過程で送出し自分で捕まえる SEH 例外を
+pytest の faulthandler が拾っているだけで、終了コードは 0 のまま検査は通る。
+読みにくいときは `-p no:faulthandler` を付ける(常用はしない —— 本物の異常も隠れる)。
 
 NOAA のデータは標準ガスの再校正等により改訂されうる。上表は
 `data/LICENSE-DATA.md` に記録した版(サーバ側 Last-Modified 2026-07-17)に対する実測である。

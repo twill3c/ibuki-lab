@@ -201,8 +201,15 @@ SYSTEMS = (
 )
 
 
-def run(gas: str = "co2") -> dict:
-    examples = curves.build_examples(gas)
+def run(gas: str = "co2", examples=None) -> dict:
+    """`examples` を渡すとその母集団で測る。
+
+    G-10 の対照母集団(CO2 と CH4 の両方が揃う 739 地点年)に対しても、
+    模型と**同じ土俵**でベースラインを出せるようにするための引数である。
+    渡さなければ主母集団(805 地点年)。
+    """
+    if examples is None:
+        examples = curves.build_examples(gas)
     labels = [ex.latitude for ex in examples]
 
     systems = {}

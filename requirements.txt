@@ -1,0 +1,22 @@
+# 学習側の依存。出荷物ではない —— ブラウザには重み JSON しか出て行かない。
+#
+# **このシェルは VIRTUAL_ENV を別プロジェクト(juchu-desk)から引き継ぐ**(HC-171)。
+# 裸の `python` は juchu-desk の venv を指すので、必ず絶対パスで起動する:
+#
+#   "C:/Users/<user>/AppData/Local/Programs/Python/Python314/python.exe" -m venv .venv
+#   .venv/Scripts/python.exe -m pip install -r requirements.txt
+#   .venv/Scripts/python.exe -m pipeline.train
+#
+# 版を範囲で書かない。ここに並ぶ版は測定の条件であって、版が動けば数が動く。
+#
+# **Flax は入れない。** Windows の MAX_PATH 制限で orbax-checkpoint の同梱
+# フィクスチャが展開できず、`pip install flax` が OSError で止まる
+# (loop_002 TOOL-ENV / 実測 2026-09-06)。前向きは自前で書く ——
+# そのほうが G-01 の TS 前向きが JAX 側の式の直訳になる。
+#
+# 実測日 2026-09-06 / Python 3.14.2 / Windows 11
+
+jax==0.11.1
+jaxlib==0.11.1
+optax==0.2.8
+numpy==2.5.3

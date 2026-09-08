@@ -207,6 +207,91 @@ def test_t020_positive_control_shifted_baseline_is_caught():
         BASELINE.write_text(json.dumps(original, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+# ---------------------------------------------------------------- T-027 (G-14)
+
+MODEL = ROOT / "data" / "model.json"
+
+# SPEC §7.8 の系の名前 → model.json のキー。
+SPEC_MODEL_ROWS = {
+    "**1D CNN(CO2 のみ)**": "cnn_co2",
+    "1D CNN(CO2 のみ・対照母集団)": "cnn_co2_paired",
+    "1D CNN(CO2 + CH4)": "cnn_co2_ch4_paired",
+}
+
+
+def _spec_model_table() -> dict:
+    out = {}
+    for line in SPEC.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [c.strip() for c in line.strip().strip("|").split("|")]
+        if len(cells) == 4 and cells[0] in SPEC_MODEL_ROWS:
+            out[cells[0]] = cells[1:]
+    return out
+
+
+def _require_model():
+    if not MODEL.exists():
+        pytest.skip("data/model.json が無い(.venv/Scripts/python.exe -m pipeline.experiment で作る)")
+    return json.loads(MODEL.read_text(encoding="utf-8"))
+
+
+def test_t027_spec_model_table_matches_report():
+    """SPEC §7.8 の測定表が data/model.json と一致する(小数第 2 位まで)。"""
+    report = _require_model()
+    table = _spec_model_table()
+
+    missing = set(SPEC_MODEL_ROWS) - set(table)
+    assert not missing, f"SPEC §7.8 の表から行が消えている: {sorted(missing)}"
+
+    for label, key in SPEC_MODEL_ROWS.items():
+        written = [w.replace("**", "") for w in table[label]]
+        measured = report["systems"][key]
+        assert float(written[0]) == round(measured["mae"], 2), (
+            f"§7.8 {label} / mae: SPEC={written[0]} model={measured['mae']:.2f}"
+        )
+        assert int(written[1].replace(",", "")) == measured["n_examples"], (
+            f"§7.8 {label} / n_examples が食い違う"
+        )
+        assert int(written[2]) == measured["params"], f"§7.8 {label} / params が食い違う"
+
+
+def test_t027_positive_control_shifted_model_number_is_caught():
+    """陽性対照: model.json の値をずらすと突合が撃つこと(HC-041)。"""
+    original = _require_model()
+    tampered = json.loads(MODEL.read_text(encoding="utf-8"))
+    tampered["systems"]["cnn_co2"]["mae"] += 1.0
+    try:
+        MODEL.write_text(json.dumps(tampered, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        with pytest.raises(AssertionError):
+            test_t027_spec_model_table_matches_report()
+    finally:
+        MODEL.write_text(json.dumps(original, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def test_t027_budget_sticking_is_small_and_disclosed():
+    """予算に張り付いた fold が少数にとどまり、件数が文書に出ていること。
+
+    **この検査は「張り付き 0 件」を要求しない。** 種が変われば内側分割も変わるので
+    0 件は追い込めず、追い込む設計にすると探索そのものが止まる(HC-218)。
+    打ち切りが結論を動かすかどうかは T-030(予算感度)が答える。
+    ここで守るのは「隠していないこと」と「少数であること」だけである。
+    """
+    report = _require_model()
+    spec = SPEC.read_text(encoding="utf-8")
+
+    for name, system in report["systems"].items():
+        share = system["folds_at_budget"] / system["folds_total"]
+        assert share < 0.05, (
+            f"{name}: {system['folds_at_budget']}/{system['folds_total']} が予算に張り付いた"
+        )
+
+    primary = report["systems"]["cnn_co2"]
+    assert f"{primary['folds_total']} 走中 **{primary['folds_at_budget']} 件**" in spec, (
+        "主系統の予算張り付き件数が SPEC §7.10 に書かれていない"
+    )
+
+
 # ---------------------------------------------------------------- T-010 (G-14)
 
 def _parse_gates(spec_text: str) -> dict:

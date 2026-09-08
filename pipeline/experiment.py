@@ -1,0 +1,487 @@
+"""L2 の学習と評価。地点群ばらし leave-one-group-out。
+
+**土俵は L1 と同じ**にする —— 同じ 805 地点年、同じ 57 群、同じ「地点あたり MAE」。
+違う土俵で出した数を並べて勝ち負けを言わない(HC-064)。
+
+学習の運びで効いている点:
+
+- **エポック数も学習率も学習側だけで決める。** 外側で抜いた群を除いた中から、さらに
+  群単位で内側の検証を切り出し、そこで最良の点を選ぶ。試験側を見て決めれば、
+  その数字はもう成績ではない。**学習率の掃引は結果ごと報告に残す** —— 隠れた選択を作らない
+- **fold は形でなく重みで分け、`vmap` で束ねて `lax.scan` の中で回す。** 実測 2026-09-06:
+  Python で 1 エポックずつ呼ぶと 26 ms の呼び出し費用が支配し、fold ごとに配列を切り出すと
+  形が変わるたび jit が作り直されて 1 fold 33 秒になる
+- **種を変えて 3 回**測り、平均と幅を出す。1 回の数字を成績と呼ばない
+"""
+from __future__ import annotations
+
+import json
+import statistics
+import time
+from pathlib import Path
+
+import jax
+import jax.numpy as jnp
+import numpy as np
+import optax
+
+from pipeline import curves, model
+
+REPORT = Path(__file__).resolve().parents[1] / "data" / "model.json"
+
+#: エポックの予算。実測 2026-09-08(57 群・種 0・予算 400)で最良点は lr=0.003 で p90 388、
+#: lr=0.01 で p90 378、lr=0.03 で中央値 23。予算 300 では 4 fold が張り付いたので 600 を置く。
+#: 所要は畳み込みを行列積に変えて 1 割強縮めてある(HC-213)。
+#:
+#: **予算に張り付いた fold があること自体は例外にしない。** 種が変われば内側分割も変わるので、
+#: 張り付きは追いかけても終わらない。問うべきは「打ち切りが結論を動かすか」であり、
+#: それには `budget_sensitivity` が答える(HC-218)。件数は報告に残す。
+MAX_EPOCHS = 600
+LEARNING_RATE = 1e-2
+SEEDS = (0, 1, 2)
+
+#: 学習率の候補。**選定は内側検証の誤差で行う**(試験側の成績を見て選ばない)。
+#: 掃引の結果は試験側の数字も含めて報告に残す —— 隠れた選択を作らないため。
+LR_CANDIDATES = (3e-3, 1e-2, 3e-2)
+
+#: 内側の検証に回す群の割合(エポック数を選ぶためだけに使う)。
+INNER_VAL_FRACTION = 0.25
+
+
+def masked_mae(params, x, y, weights):
+    """重み付きの平均絶対誤差。fold ごとの出入りを**形でなく重みで**表す。
+
+    fold ごとに配列を切り出すと形が毎回変わり、jit がそのつど作り直される
+    (実測 2026-09-06: 1 fold あたり 33 秒。57 群 × 3 種 × 3 系統で 4.7 時間)。
+    重み 0 で外せば形は一定になり、コンパイルは一度で済む。
+    """
+    errors = jnp.abs(model.forward(params, x) - y)
+    return jnp.sum(errors * weights) / jnp.sum(weights)
+
+
+def _make_trainer():
+    """全 fold を `vmap` で束ね、エポックの繰り返しを `lax.scan` の中で回す。
+
+    返るのは **内側検証が最良だった時点の重み**である。エポック数を選んでから
+    学習し直す二段構えにすると、選んだ数ごとに jit が作り直される。
+    一度の走査の中で最良点を持ち回れば、コンパイルは一度で済む。
+
+    代わりに、最終的な重みは学習側の 75%(内側検証を除いた分)だけで学んだものになる。
+    **試験側は一度も見ていない**ので成績の意味は変わらない。
+    """
+    tx = optax.adam(LEARNING_RATE)  # 呼ばれた時点の学習率で閉じる(掃引はこの関数を作り直す)
+
+    def one_fold(params, x, y, train_w, val_w):
+        state = tx.init(params)
+        init_val = masked_mae(params, x, y, val_w)
+
+        def one_epoch(carry, _):
+            p, s, best_val, best_p, best_epoch, epoch = carry
+            grads = jax.grad(masked_mae)(p, x, y, train_w)
+            updates, s = tx.update(grads, s, p)
+            p = optax.apply_updates(p, updates)
+
+            val = masked_mae(p, x, y, val_w)
+            improved = val < best_val
+            best_p = jax.tree.map(lambda new, old: jnp.where(improved, new, old), p, best_p)
+            best_val = jnp.where(improved, val, best_val)
+            best_epoch = jnp.where(improved, epoch + 1, best_epoch)
+            return (p, s, best_val, best_p, best_epoch, epoch + 1), None
+
+        carry = (params, state, init_val, params, jnp.int32(0), jnp.int32(0))
+        (_, _, best_val, best_p, best_epoch, _), _ = jax.lax.scan(
+            one_epoch, carry, None, length=MAX_EPOCHS
+        )
+        return best_p, best_val, best_epoch
+
+    return jax.jit(jax.vmap(one_fold, in_axes=(0, None, None, 0, 0)))
+
+
+def _inner_split(groups, held, seed):
+    """外側で抜いた群を除いた中から、群単位で内側の検証を切り出す。"""
+    pool = sorted({g for g in groups if g != held})
+    rng = np.random.default_rng(20260906 + seed)
+    rng.shuffle(pool)
+    n_val = max(1, int(round(len(pool) * INNER_VAL_FRACTION)))
+    val = set(pool[:n_val])
+    return val
+
+
+def _per_site_mae(examples, indices, preds, labels) -> float:
+    by_site: dict[str, list] = {}
+    for pos, i in enumerate(indices):
+        by_site.setdefault(examples[i].code, []).append(abs(preds[pos] - labels[i]))
+    return statistics.mean(statistics.mean(v) for v in by_site.values())
+
+
+def sweep_learning_rate(examples, x, y, channels: int = 1, seed: int = 0) -> dict:
+    """学習率を掃引する。**選定は内側検証の誤差だけで行う。**
+
+    試験側の成績も一緒に記録して報告に載せるが、選ぶのには使わない。
+    掃引を隠すと「試験を見て選んだのでは」という疑いが残るので、全部出す。
+    """
+    global LEARNING_RATE
+    original = LEARNING_RATE
+    rows = {}
+    try:
+        for lr in LR_CANDIDATES:
+            LEARNING_RATE = lr
+            started = time.time()
+            result = run_logo(examples, x, y, channels, seed, strict_budget=False)
+            row = {
+                "val_mae": result["val_mae"],
+                "test_mae_per_site": _per_site_mae(
+                    examples, range(len(examples)), result["preds"], y
+                ),
+                "epochs_median": statistics.median(result["epochs"]),
+                "epochs_max": max(result["epochs"]),
+                "folds_at_budget": result["folds_at_budget"],
+                "eligible": result["folds_at_budget"] == 0,
+                "seconds": round(time.time() - started),
+            }
+            rows[f"{lr:g}"] = row
+            print(
+                f"  掃引 lr={lr:g}: 内側検証 {row['val_mae']:.2f} / "
+                f"試験 {row['test_mae_per_site']:.2f} / "
+                f"最良点 中央値 {row['epochs_median']:.0f} 最大 {row['epochs_max']} / "
+                f"予算張り付き {row['folds_at_budget']} 件"
+                f"{'' if row['eligible'] else ' → 失格'}"
+            )
+    finally:
+        LEARNING_RATE = original
+
+    # 予算内に内側検証が折り返さない候補は失格。**試験側は見ない**判定である。
+    eligible = {k: v for k, v in rows.items() if v["eligible"]}
+    if not eligible:
+        raise RuntimeError(
+            f"予算 {MAX_EPOCHS} 内に内側検証が折り返す学習率が無い。予算か候補を見直すこと"
+        )
+    chosen = min(eligible, key=lambda k: eligible[k]["val_mae"])
+    return {
+        "rows": rows,
+        "chosen_lr": float(chosen),
+        "chosen_by": "val_mae(予算内に折り返した候補のみ)",
+        "seed": seed,
+        "max_epochs": MAX_EPOCHS,
+    }
+
+
+def run_logo(
+    examples,
+    x,
+    y,
+    channels: int,
+    seed: int,
+    audit: list | None = None,
+    strict_budget: bool = True,
+) -> dict:
+    """leave-one-group-out を一周する。返り値は例の順に並んだ予測。
+
+    `strict_budget` は呼び出し側が決める(HC-218)。掃引では「予算内に内側検証が
+    折り返さない」こと自体が候補の失格理由なので止めない。本測定でも止めない ——
+    止めると、止めた理由(打ち切り)が結論に効いているかを永久に測れないからである。
+    打ち切りの影響は `budget_sensitivity` が別に測る。
+    """
+    groups = [ex.group for ex in examples]
+    folds = curves.leave_one_group_out(examples)
+    n = len(examples)
+
+    train_w = np.zeros((len(folds), n), dtype=np.float32)
+    val_w = np.zeros((len(folds), n), dtype=np.float32)
+    for f, (train_idx, test_idx) in enumerate(folds):
+        held = groups[test_idx[0]]
+        val_groups = _inner_split(groups, held, seed)
+        for i in train_idx:
+            if groups[i] in val_groups:
+                val_w[f, i] = 1.0
+            else:
+                train_w[f, i] = 1.0
+        if audit is not None:
+            audit.append(
+                {
+                    "held_out": held,
+                    "train_groups": sorted({groups[i] for i in train_idx}),
+                    "test_groups": sorted({groups[i] for i in test_idx}),
+                    "train_examples_seen": len(train_idx),
+                    "test_examples_scored": len(test_idx),
+                    "inner_val_groups": len(val_groups),
+                }
+            )
+
+    # 重みが立っている例と、その fold の試験側は排他でなければならない(G-04)。
+    for f, (_, test_idx) in enumerate(folds):
+        for i in test_idx:
+            assert train_w[f, i] == 0.0 and val_w[f, i] == 0.0, "試験側に重みが乗っている"
+
+    stacked = jax.tree.map(
+        lambda *leaves: jnp.stack(leaves),
+        *[model.init_params(seed * 1000 + f, channels=channels) for f in range(len(folds))],
+    )
+    trainer = _make_trainer()
+    best_params, best_vals, best_epochs = trainer(
+        stacked, jnp.asarray(x), jnp.asarray(y), jnp.asarray(train_w), jnp.asarray(val_w)
+    )
+
+    preds = np.full(n, np.nan, dtype=np.float64)
+    for f, (_, test_idx) in enumerate(folds):
+        fold_params = jax.tree.map(lambda leaf: leaf[f], best_params)
+        preds[test_idx] = np.asarray(
+            model.forward(fold_params, jnp.asarray(x[test_idx]))
+        )
+
+    chosen_epochs = [int(e) for e in np.asarray(best_epochs)]
+    at_budget = [e for e in chosen_epochs if e >= MAX_EPOCHS]
+    if strict_budget:
+        assert not at_budget, (
+            f"最良点が予算 {MAX_EPOCHS} に張り付いた fold が {len(at_budget)} 件ある —— "
+            "この成績は打ち切りの産物である"
+        )
+    if audit is not None:
+        for entry, epoch in zip(audit, chosen_epochs):
+            entry["epochs"] = epoch
+
+    assert not np.isnan(preds).any(), "予測されていない例がある"
+    return {
+        "preds": preds,
+        "epochs": chosen_epochs,
+        "val_mae": float(np.mean(np.asarray(best_vals))),
+        "folds_at_budget": len(at_budget),
+    }
+
+
+def evaluate(examples, x, y, channels: int, label: str, keep_audit: bool = False) -> dict:
+    """種を変えて 3 回まわし、平均と幅を出す。
+
+    **予算の張り付きは例外にしない。** 張り付きが結論を動かすかどうかは、
+    件数ではなく `budget_sensitivity` が答える(SPEC §7.7 / HC-218)。
+    ここで止めると、止めた理由(打ち切り)が結論に効いているかを永久に測れない。
+    """
+    maes, per_example, epochs_all = [], [], []
+    at_budget = 0
+    audit = [] if keep_audit else None
+    for seed in SEEDS:
+        started = time.time()
+        result = run_logo(
+            examples, x, y, channels, seed,
+            audit if seed == SEEDS[0] else None,
+            strict_budget=False,
+        )
+        at_budget += result["folds_at_budget"]
+        preds = result["preds"]
+        maes.append(_per_site_mae(examples, range(len(examples)), preds, y))
+        per_example.append(float(np.mean(np.abs(preds - y))))
+        epochs_all.extend(result["epochs"])
+        print(
+            f"  {label} seed={seed}: 地点MAE {maes[-1]:.2f} / 例MAE {per_example[-1]:.2f} "
+            f"({time.time() - started:.0f} 秒)"
+        )
+
+    out = {
+        "metric": "mae_per_site",
+        "mae": statistics.mean(maes),
+        "mae_per_seed": maes,
+        "mae_spread": max(maes) - min(maes),
+        "mae_per_example": statistics.mean(per_example),
+        "channels": channels,
+        "params": model.count_params(model.init_params(0, channels=channels)),
+        "epochs_median": statistics.median(epochs_all),
+        "epochs_max": max(epochs_all),
+        "max_epochs_budget": MAX_EPOCHS,
+        "folds_at_budget": at_budget,
+        "folds_total": len(SEEDS) * len({ex.group for ex in examples}),
+        "n_examples": len(examples),
+        "n_sites": len({ex.code for ex in examples}),
+        "n_groups": len({ex.group for ex in examples}),
+    }
+    if keep_audit:
+        out["_audit"] = audit
+    return out
+
+
+def measure_unit(examples, x, y, channels: int) -> float:
+    """本番規模に入る前に**一単位**(scan 内の 1 エポック)を測り、総所要を掛け算で出す。
+
+    HC-207 / HC-213 の規範をコードの側に置く。**測ったのは実装であって仕事ではない**ので、
+    実装を触ったら必ずここを通る。遅さはテストの赤として現れないから、
+    走らせる前に数字を見る道をコードに埋めておく。
+    """
+    groups = [ex.group for ex in examples]
+    folds = curves.leave_one_group_out(examples)
+    train_w = np.zeros((len(folds), len(examples)), dtype=np.float32)
+    for f, (train_idx, _) in enumerate(folds):
+        for i in train_idx:
+            train_w[f, i] = 1.0
+    stacked = jax.tree.map(
+        lambda *leaves: jnp.stack(leaves),
+        *[model.init_params(f, channels=channels) for f in range(len(folds))],
+    )
+    grad = jax.jit(jax.vmap(jax.grad(masked_mae), in_axes=(0, None, None, 0)))
+    xj, yj, wj = jnp.asarray(x), jnp.asarray(y), jnp.asarray(train_w)
+
+    jax.block_until_ready(grad(stacked, xj, yj, wj)["conv1_w"])  # コンパイルを外に出す
+    started = time.time()
+    for _ in range(5):
+        out = grad(stacked, xj, yj, wj)
+    jax.block_until_ready(out["conv1_w"])
+    return (time.time() - started) / 5
+
+
+#: 予算感度の判定閾値(度)。相手との差(L1 実測で 12.0 − 10.95 = 1.05 度)の
+#: 3 分の 1 未満なら、打ち切りは結論を作っていないと言える。**測定前に決めて動かさない。**
+BUDGET_SENSITIVITY_MARGIN = 0.35
+
+
+def _jsonable(value):
+    """numpy の型を Python の型へ落とす。
+
+    `json.dumps` は numpy.bool_ / numpy.float64 を書けない。書き出しは main の最後に
+    一度だけ来るので、ここで落とし損ねると**計算がすべて終わってから**落ちる
+    (loop_002 GEN-LOGIC: 14 走ぶん 2 時間を失った)。
+    """
+    if isinstance(value, dict):
+        return {str(k): _jsonable(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_jsonable(v) for v in value]
+    if isinstance(value, (np.bool_, bool)):
+        return bool(value)
+    if isinstance(value, np.integer):
+        return int(value)
+    if isinstance(value, np.floating):
+        return float(value)
+    return value
+
+
+def write_report(report: dict) -> None:
+    """報告を書く。**走り出す前に一度呼んで書き出し経路を通しておく**こと。"""
+    REPORT.write_text(
+        json.dumps(_jsonable(report), ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+
+
+def budget_sensitivity(examples, x, y, channels: int = 1, seed: int = 0, factor: int = 3) -> dict:
+    """予算を `factor` 倍にして測り直し、成績がどれだけ動くかを出す。
+
+    打ち切りは模型の成績を**下振れさせる**ので、「模型が 2 特徴に負けた」という
+    結論に対しては都合の良い側に働く。打ち切りが負けを作っていないことを示さないと、
+    その結論は主張できない(HC-218)。
+    """
+    global MAX_EPOCHS
+    original = MAX_EPOCHS
+    out = {}
+    try:
+        for budget in (original, original * factor):
+            MAX_EPOCHS = budget
+            started = time.time()
+            result = run_logo(examples, x, y, channels, seed, strict_budget=False)
+            out[str(budget)] = {
+                "mae": _per_site_mae(examples, range(len(examples)), result["preds"], y),
+                "folds_at_budget": result["folds_at_budget"],
+                "epochs_median": statistics.median(result["epochs"]),
+                "seconds": round(time.time() - started),
+            }
+            print(
+                f"  予算感度 {budget} エポック: 地点MAE {out[str(budget)]['mae']:.2f} / "
+                f"張り付き {out[str(budget)]['folds_at_budget']} 件"
+            )
+    finally:
+        MAX_EPOCHS = original
+
+    a, b = out[str(original)]["mae"], out[str(original * factor)]["mae"]
+    return {
+        "budgets": out,
+        "delta_mae": b - a,
+        "margin": BUDGET_SENSITIVITY_MARGIN,
+        "truncation_drives_conclusion": abs(b - a) >= BUDGET_SENSITIVITY_MARGIN,
+        "seed": seed,
+    }
+
+
+def main() -> int:
+    baseline = json.loads(
+        (REPORT.parent / "baseline.json").read_text(encoding="utf-8")
+    )
+    opponent_name = baseline["best_two_feature_system"]
+    opponent_mae = baseline["systems"][opponent_name]["mae"]
+
+    co2 = curves.build_examples("co2")
+    x1, y1 = model.to_arrays(co2)
+
+    unit = measure_unit(co2, x1, y1, channels=1)
+    passes = len(SEEDS) * 3
+    print(
+        f"一単位(勾配 1 回): {unit*1000:.0f} ms → "
+        f"1 走 {unit * MAX_EPOCHS * 3.3 / 60:.0f} 分見込み × {passes} 走 = "
+        f"{unit * MAX_EPOCHS * 3.3 * passes / 60:.0f} 分見込み"
+        f"(scan の中は素の勾配の 3.3 倍 — 実測 2026-09-08)"
+    )
+
+    print(f"主系統: {len(co2)} 地点年 / {len({e.group for e in co2})} 群")
+
+    # **走り出す前に書き出し経路を一度通す。** 書き出しは最後に一度しか来ないので、
+    # ここで落とし損ねると計算がすべて終わってから落ちる(loop_002 GEN-LOGIC)。
+    report = {
+        "generated_from": "pipeline/experiment.py",
+        "status": "running",
+        "max_epochs": MAX_EPOCHS,
+        "seeds": list(SEEDS),
+        "inner_val_fraction": INNER_VAL_FRACTION,
+        "conv_path": "matmul",
+        "opponent": {"system": opponent_name, "mae": opponent_mae},
+        "p01_threshold_mae": baseline["p01_threshold_mae"],
+        "systems": {},
+    }
+    write_report(report)
+
+    print("学習率の掃引(選定は内側検証のみ・種 0):")
+    sweep = sweep_learning_rate(co2, x1, y1, channels=1, seed=0)
+    global LEARNING_RATE
+    LEARNING_RATE = sweep["chosen_lr"]
+    print(f"  → 採用 lr={LEARNING_RATE:g}(内側検証が最小)")
+    report["lr_sweep"] = sweep
+    report["learning_rate"] = LEARNING_RATE
+    write_report(report)
+
+    primary = evaluate(co2, x1, y1, channels=1, label="cnn_co2", keep_audit=True)
+    report["fold_audit"] = primary.pop("_audit")
+    report["systems"]["cnn_co2"] = primary
+    write_report(report)
+
+    # G-10: CH4 を足す比較は、**両系統を同じ 739 地点年**に載せて行う。
+    ch4 = {(e.code, e.year): e for e in curves.build_examples("ch4")}
+    paired = [e for e in co2 if (e.code, e.year) in ch4]
+    second = [ch4[(e.code, e.year)] for e in paired]
+    x_pair_1, y_pair = model.to_arrays(paired)
+    x_pair_2, _ = model.to_arrays(paired, second=second)
+
+    print(f"CH4 比較: {len(paired)} 地点年 / {len({e.group for e in paired})} 群")
+    co2_only = evaluate(paired, x_pair_1, y_pair, channels=1, label="cnn_co2_paired")
+    report["systems"]["cnn_co2_paired"] = co2_only
+    write_report(report)
+
+    with_ch4 = evaluate(paired, x_pair_2, y_pair, channels=2, label="cnn_co2_ch4_paired")
+    report["systems"]["cnn_co2_ch4_paired"] = with_ch4
+    write_report(report)
+
+    print("予算感度(打ち切りが結論を作っていないかを測る):")
+    sensitivity = budget_sensitivity(co2, x1, y1, channels=1, seed=0)
+    report["budget_sensitivity"] = sensitivity
+    report["status"] = "complete"
+    write_report(report)
+
+    print()
+    print(f"相手(L1): {opponent_name} 地点MAE {opponent_mae:.2f}")
+    print(f"模型     : cnn_co2 地点MAE {primary['mae']:.2f}(種ごと {['%.2f' % m for m in primary['mae_per_seed']]})")
+    print(f"G-08 閾値 {report['p01_threshold_mae']:.2f} → "
+          f"{'通過' if primary['mae'] <= report['p01_threshold_mae'] else '不通過'}")
+    print(f"G-09 相手 {opponent_mae:.2f} → "
+          f"{'通過' if primary['mae'] < opponent_mae else '不通過'}")
+    print(f"G-10 CH4 {co2_only['mae']:.2f} → {with_ch4['mae']:.2f} → "
+          f"{'通過' if with_ch4['mae'] < co2_only['mae'] else '不通過'}")
+    print(f"予算感度: 予算 3 倍で {sensitivity['delta_mae']:+.2f} 度 "
+          f"(閾値 {BUDGET_SENSITIVITY_MARGIN} 度) → "
+          f"{'打ち切りが結論を左右する' if sensitivity['truncation_drives_conclusion'] else '打ち切りは結論を作っていない'}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
