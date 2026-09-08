@@ -1,0 +1,17 @@
+{
+  "name": "ibuki-lab",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "description": "息吹ラボ — 年周曲線から観測地点の緯度を当てる。ブラウザ側の前向きは自前実装で、学習側の JAX と照合する。",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "typescript": "5.9.3",
+    "vitest": "3.2.4"
+  }
+}

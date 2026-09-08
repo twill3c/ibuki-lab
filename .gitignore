@@ -9,3 +9,6 @@ node_modules/
 .next/
 out/
 .vercel/
+
+# 実行ログ(監視用の一時ファイル)
+logs/*.log
