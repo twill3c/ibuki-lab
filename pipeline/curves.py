@@ -194,6 +194,91 @@ def build_examples(gas: str) -> tuple:
     return tuple(out)
 
 
+@functools.lru_cache(maxsize=None)
+def band_climatology(gas: str) -> tuple:
+    """船舶帯の気候値曲線。**複数年をまとめて一本にする。**
+
+    周航は各緯度を年に数回しか通らないので、一年では 24 ビンが埋まらない
+    (SPEC §2.3)。学習には使えないが、**緯度梯子の絵**(F-02)には使える ——
+    同じ船・同じ海・同じ研究室で緯度だけを振った列だからである。
+
+    地点年ごとの直線除去ができないので、ここでは**ビンごとに全年の偏差を平均する**。
+    偏差は「その年のその帯の平均」からの差で取る。つまり年ごとの水準と長期の増加は
+    年内平均を引く時点で落ちるが、**年内の増加ぶんは残る** —— 学習の系列とは
+    作り方が違うので、混ぜて使わない。
+    """
+    sites = {s.code: s for s in ingest.build_sites(gas)}
+    out = []
+    for series in ingest.training_series(gas):
+        site = sites[series.code]
+        if site.lat_source != "band":
+            continue
+
+        by_year: dict[int, dict[float, list]] = {}
+        for time_decimal, value in series.values:
+            year = int(math.floor(time_decimal))
+            by_year.setdefault(year, {}).setdefault(time_decimal, []).append(value)
+
+        sums = [0.0] * N_BINS
+        counts = [0] * N_BINS
+        years_used = 0
+        for year, by_time in sorted(by_year.items()):
+            averaged = [
+                (t, sum(v) / len(v)) for t, v in sorted(by_time.items())
+            ]
+            if len(averaged) < 4:
+                continue
+            level = sum(v for _, v in averaged) / len(averaged)
+            for time_decimal, value in averaged:
+                index = bin_index(time_decimal)
+                sums[index] += value - level
+                counts[index] += 1
+            years_used += 1
+
+        if not all(counts):
+            continue
+        out.append(
+            {
+                "code": series.code,
+                "parent": site.parent,
+                "latitude": site.latitude,
+                "values": tuple(s / c for s, c in zip(sums, counts)),
+                "years": years_used,
+                "samples_per_bin_min": min(counts),
+                "samples_total": sum(counts),
+            }
+        )
+    return tuple(sorted(out, key=lambda r: -r["latitude"]))
+
+
+def site_climatology(gas: str) -> tuple:
+    """固定地点の気候値曲線。採用した地点年の平均を取るだけ。
+
+    学習に使ったのと**同じ作り方の系列**を平均しているので、画面①の帯と
+    模型が見ているものは同じ形である。
+    """
+    by_site: dict[str, list] = {}
+    for ex in build_examples(gas):
+        by_site.setdefault(ex.code, []).append(ex)
+
+    out = []
+    for code, rows in by_site.items():
+        stacked = [
+            sum(r.values[i] for r in rows) / len(rows) for i in range(N_BINS)
+        ]
+        out.append(
+            {
+                "code": code,
+                "latitude": rows[0].latitude,
+                "values": tuple(stacked),
+                "years": len(rows),
+                "year_min": min(r.year for r in rows),
+                "year_max": max(r.year for r in rows),
+            }
+        )
+    return tuple(sorted(out, key=lambda r: -r["latitude"]))
+
+
 def coverage_report(gas: str) -> dict:
     """採否の内訳。落とした数を分子と分母で出す(G-16)。"""
     raws = raw_bin_means(gas)

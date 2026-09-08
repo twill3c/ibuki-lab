@@ -1,0 +1,157 @@
+:root {
+  --ink: #16202a;
+  --ink-soft: #4a5a68;
+  --ink-faint: #7b8894;
+  --paper: #fbfaf7;
+  --panel: #ffffff;
+  --line: #dfd9cf;
+  --inhale: hsl(205 60% 42%);
+  --exhale: hsl(15 65% 46%);
+  --accent: #1d6a8c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic", Meiryo, system-ui, sans-serif;
+  line-height: 1.75;
+  /* 横に溢れないことは検品で測るが、根本の防波堤をここに置く(N-03) */
+  overflow-x: hidden;
+}
+
+main {
+  max-width: 74rem;
+  margin: 0 auto;
+  padding: 2.5rem 1.25rem 7rem;
+}
+
+h1 {
+  font-size: clamp(1.5rem, 4.5vw, 2.4rem);
+  line-height: 1.35;
+  margin: 0 0 0.5rem;
+  letter-spacing: 0.01em;
+}
+
+h2 {
+  font-size: clamp(1.1rem, 3vw, 1.4rem);
+  margin: 3rem 0 0.5rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--line);
+}
+
+h3 {
+  font-size: 1rem;
+  margin: 1.75rem 0 0.4rem;
+}
+
+p {
+  margin: 0.6rem 0;
+  max-width: 60rem;
+}
+
+.lede {
+  font-size: clamp(1rem, 2.4vw, 1.15rem);
+  color: var(--ink-soft);
+}
+
+.note {
+  font-size: 0.86rem;
+  color: var(--ink-faint);
+  max-width: 60rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  margin: 1rem 0;
+}
+
+/* 図は必ず自分の器の中で横スクロールさせる。本文側を溢れさせない(N-03) */
+.figure-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  align-items: center;
+  margin: 0.75rem 0;
+  font-size: 0.9rem;
+}
+
+.controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+input[type="range"] {
+  width: min(22rem, 60vw);
+  accent-color: var(--accent);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1.25rem;
+  align-items: center;
+  font-size: 0.84rem;
+  color: var(--ink-soft);
+}
+
+.swatch {
+  display: inline-block;
+  width: 1.1rem;
+  height: 0.7rem;
+  border: 1px solid var(--line);
+  vertical-align: -0.05em;
+  margin-right: 0.3rem;
+}
+
+table {
+  border-collapse: collapse;
+  font-size: 0.87rem;
+}
+
+th,
+td {
+  border-bottom: 1px solid var(--line);
+  padding: 0.35rem 0.7rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+th:first-child,
+td:first-child {
+  text-align: left;
+}
+
+footer.fleet {
+  border-top: 1px solid var(--line);
+  margin-top: 4rem;
+  padding: 1.25rem 0 0;
+  font-size: 0.82rem;
+  color: var(--ink-faint);
+}
+
+footer.fleet a {
+  color: var(--ink-soft);
+}

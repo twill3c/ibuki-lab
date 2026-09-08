@@ -12,3 +12,6 @@ out/
 
 # 実行ログ(監視用の一時ファイル)
 logs/*.log
+next-env.d.ts
+*.tsbuildinfo
+logs/shots/

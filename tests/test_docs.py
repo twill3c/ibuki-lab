@@ -311,11 +311,41 @@ def _orphan_gates(gates: dict, referenced: set) -> list:
     ]
 
 
+#: ゲートを守っている検査の在り処。**Python のテストだけではない** ——
+#: 図の収まりや操作の到達は実ブラウザ検品が、前向きの照合は TS の検査が守る。
+#: ここを狭く取ると、実際には守られているゲートが「参照なし」として落ちる。
+CHECK_SOURCES = (
+    ("tests", "test_*.py"),
+    ("src", "**/*.test.ts"),
+    ("scripts", "*.mjs"),
+)
+
+
 def _referenced_gate_ids() -> set:
     out = set()
-    for path in (ROOT / "tests").glob("test_*.py"):
-        out |= set(re.findall(r"G-\d+", path.read_text(encoding="utf-8")))
+    for folder, pattern in CHECK_SOURCES:
+        for path in (ROOT / folder).glob(pattern):
+            out |= set(re.findall(r"G-\d+", path.read_text(encoding="utf-8")))
     return out
+
+
+def test_t010_browser_gates_are_declared_in_the_checker():
+    """実ブラウザ検品が守るゲートが、検品器の対応表に**書かれている**こと。
+
+    走査で `G-13` の文字が見つかるだけでは、コメントに書いただけかもしれない。
+    検品器の GATES 表に現れることを要求すると、ケースとゲートの対応が実体になる(HC-157)。
+    """
+    checker = (ROOT / "scripts" / "browser_check.mjs").read_text(encoding="utf-8")
+    table = re.search(r"const GATES = \{(.*?)\n\};", checker, re.S)
+    assert table, "検品器に GATES の対応表が無い"
+
+    declared = set(re.findall(r'"(G-\d+|[FN]-\d+)"', table.group(1)))
+    for gate in ("G-13", "G-06", "G-16"):
+        assert gate in declared, f"{gate} が検品器の対応表に無い"
+
+    cases = set(re.findall(r'"(B-\d+c?)":', table.group(1)))
+    reported = set(re.findall(r'report\("(B-\d+c?)"', checker))
+    assert cases == reported, f"対応表とケースが食い違う: 表のみ {cases - reported} / 実行のみ {reported - cases}"
 
 
 def test_t010_every_gate_is_referenced_or_declared_unimplemented():
