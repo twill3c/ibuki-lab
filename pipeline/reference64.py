@@ -75,6 +75,17 @@ def main() -> int:
         f"(無次元化すると最大 {gap.max() / model.LATITUDE_SCALE:.3e})"
     )
 
+    # 顕著度(入力に対する勾配)の基準。TS 側は中心差分で近似するので、
+    # **自動微分との照合**で近似が妥当な範囲にあることを示す(T-052)。
+    def scalar_output(x_one):
+        return model.forward(params, x_one[None, :, :])[0]
+
+    grads = []
+    for index in reference["sample_indices"]:
+        x_one = jnp.asarray(np.asarray(x[index], dtype=np.float64))
+        grads.append(np.asarray(jax.grad(scalar_output)(x_one))[:, 0].tolist())
+    reference["input_gradients_float64"] = _round(grads)
+
     sample_indices = reference["sample_indices"]
     reference["outputs_float64"] = _round(outputs.tolist())
     reference["activations_float64"] = {

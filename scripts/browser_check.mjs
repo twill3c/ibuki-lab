@@ -40,6 +40,10 @@ const GATES = {
   "B-12": "F-03",
   "B-13": "F-08",
   "B-14": "G-13",
+  "B-15": "F-04",
+  "B-16": "F-05",
+  "B-17": "F-04",
+  "B-18": "G-13",
 };
 
 const results = [];
@@ -77,8 +81,28 @@ async function overflowing(page, selector) {
       if (!(el instanceof SVGGraphicsElement)) continue;
       // defs の中身は描画木ではない。pattern の座標系は自前で bbox が負になる(HC-194)
       if (el.closest("defs")) continue;
-      const b = el.getBBox();
-      if (b.width === 0 && b.height === 0) continue;
+      const raw = el.getBBox();
+      if (raw.width === 0 && raw.height === 0) continue;
+
+      // **getBBox は要素自身の座標系の矩形で、祖先の transform を含まない。**
+      // 素のまま viewBox と比べると、g で translate した部分が偽の「はみ出し」になる
+      // (loop_006 VERIF-FALSE)。getCTM で SVG のビューポートへ写してから比べる。
+      const m = el.getCTM();
+      const corners = [
+        [raw.x, raw.y],
+        [raw.x + raw.width, raw.y],
+        [raw.x, raw.y + raw.height],
+        [raw.x + raw.width, raw.y + raw.height],
+      ].map(([x, y]) => (m ? { x: m.a * x + m.c * y + m.e, y: m.b * x + m.d * y + m.f } : { x, y }));
+      const xs = corners.map((c) => c.x);
+      const ys = corners.map((c) => c.y);
+      const b = {
+        x: Math.min(...xs),
+        y: Math.min(...ys),
+        width: Math.max(...xs) - Math.min(...xs),
+        height: Math.max(...ys) - Math.min(...ys),
+      };
+
       const tol = 0.5;
       if (
         b.x < vb.x - tol ||
@@ -212,6 +236,50 @@ async function main() {
     // B-14: 画面②の図も viewBox に収まる
     const risingOver = await overflowing(page, "svg#rising");
     report("B-14", risingOver.length === 0, `はみ出し ${risingOver.length} 件 ${risingOver.slice(0, 2).join(" ")}`);
+
+    // B-15: 曲線を選ぶとブラウザ内の前向きが答えを出し、**印の位置が動く**
+    const answerY = () =>
+      page.$eval('[data-testid="answer-marker"]', (el) =>
+        Number((el.getAttribute("transform") ?? "").replace(/[^0-9.\-]/g, "")),
+      );
+    const select = await page.$('[data-testid="curve-select"]');
+    await select.scrollIntoViewIfNeeded();
+    await select.selectOption("jma_mnm");
+    const yMnm = await answerY();
+    await select.selectOption("alt");
+    const yAlt = await answerY();
+    report("B-15", Number.isFinite(yMnm) && Number.isFinite(yAlt) && Math.abs(yAlt - yMnm) > 10,
+      `南鳥島 y=${yMnm.toFixed(0)} → Alert y=${yAlt.toFixed(0)}`);
+
+    // B-16: 顕著度が塗られ、色が一様でない(絵が何か言っている)
+    const salColours = await page.$$eval('[data-testid="saliency-cell"]', (els) =>
+      els.map((el) => el.getAttribute("fill")),
+    );
+    report("B-16", salColours.length === 24 && new Set(salColours).size > 8,
+      `帯 ${salColours.length} 個 / 色 ${new Set(salColours).size} 種`);
+
+    // B-17: **振幅を動かすと答えが動き、位相を回しても動かない**(SPEC §7.15 の機構)
+    await select.selectOption("jma_mnm");
+    const plainY = await answerY();
+    const factor = await page.$('[data-testid="factor-slider"]');
+    await factor.fill("2.4");
+    const amplifiedY = await answerY();
+    await page.click('[data-testid="reset-morph"]');
+    const shiftSlider = await page.$('[data-testid="shift-slider"]');
+    await shiftSlider.fill("12");
+    const rotatedY = await answerY();
+    const curveLength = await page.$eval('[data-testid="guess-path"]', (el) => (el.getAttribute("d") ?? "").length);
+    await page.click('[data-testid="reset-morph"]');
+    report("B-17",
+      Math.abs(amplifiedY - plainY) > 5 && Math.abs(rotatedY - plainY) < 0.5 && curveLength > 100,
+      `振幅で ${Math.abs(amplifiedY - plainY).toFixed(1)}px 動き、位相で ${Math.abs(rotatedY - plainY).toFixed(2)}px`);
+
+    // B-18: 画面③の二つの図も viewBox に収まる
+    const guessOver = [
+      ...(await overflowing(page, "svg#guess-curve")),
+      ...(await overflowing(page, "svg#guess-strip")),
+    ];
+    report("B-18", guessOver.length === 0, `はみ出し ${guessOver.length} 件 ${guessOver.slice(0, 2).join(" ")}`);
 
     // B-05: 緯度梯子が描かれ、**振幅が北から南へ単調に潰れて戻る**
     const amps = await page.$$eval('[data-band]', (els) =>

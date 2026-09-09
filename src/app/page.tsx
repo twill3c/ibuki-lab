@@ -3,8 +3,10 @@ import { join } from "node:path";
 
 import BreathingEarth from "./BreathingEarth";
 import RisingBreath from "./RisingBreath";
+import GuessLatitude, { type Screen3 } from "./GuessLatitude";
 import type { Screen1 } from "../lib/breathing";
 import type { Screen2 } from "../lib/rising";
+import type { Weights } from "../model/forward";
 
 // 静的書き出しなので、データはビルド時に読んで埋め込む。
 // 実行時に外へ取りに行かない(N-01)。
@@ -16,6 +18,10 @@ function load<T>(name: string): T {
 export default function Page() {
   const screen1 = load<Screen1>("screen1.json");
   const screen2 = load<Screen2>("screen2.json");
+  const screen3 = load<Screen3>("screen3.json");
+  const model = JSON.parse(
+    readFileSync(join(process.cwd(), "data", "model_weights.json"), "utf8"),
+  ) as Weights & { metadata: { generalisation_estimate_mae: number } };
 
   return (
     <main>
@@ -33,6 +39,12 @@ export default function Page() {
       <BreathingEarth data={screen1} />
 
       <RisingBreath data={screen2} />
+
+      <GuessLatitude
+        data={screen3}
+        weights={model}
+        generalisationMae={model.metadata.generalisation_estimate_mae}
+      />
 
       <footer className="fleet">
         <p>
