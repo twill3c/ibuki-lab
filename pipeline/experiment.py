@@ -396,6 +396,26 @@ def budget_sensitivity(examples, x, y, channels: int = 1, seed: int = 0, factor:
     }
 
 
+def shuffled_second_channel(paired, second, seed: int = 20260910):
+    """CH4 チャンネルを**地点年の対応だけ壊して**入れ替える。
+
+    G-10 は通ったが、下がったのが「CH4 が緯度の情報を足した」からか
+    「第 2 チャンネルが学習を安定させた」からか分けられていなかった(SPEC §7.11)。
+
+    入れ替えた CH4 は、**分布も滑らかさも本物のまま、その地点年のものではない**。
+    これでも下がるなら、効いていたのは情報でなくチャンネルの存在である。
+    """
+    rng = np.random.default_rng(seed)
+    order = rng.permutation(len(second))
+    # 自分自身に当たった分は隣とずらす(入れ替えが一部で起きない事故を防ぐ)
+    for i in range(len(order)):
+        if order[i] == i:
+            j = (i + 1) % len(order)
+            order[i], order[j] = order[j], order[i]
+    assert not any(order[i] == i for i in range(len(order))), "入れ替わっていない例がある"
+    return [second[j] for j in order]
+
+
 def main() -> int:
     baseline = json.loads(
         (REPORT.parent / "baseline.json").read_text(encoding="utf-8")

@@ -28,6 +28,17 @@ DENSE = 8
 #: 緯度をこの値で割ってから学習する(度のまま学ぶと初期損失が大きく暴れる)。
 LATITUDE_SCALE = 90.0
 
+#: 要約の取り方。**この切替だけが位相の見え方を変える。他は一切変えない。**
+#:
+#: - "invariant": 時間方向の平均と絶対値の最大。どちらもずらしに**不変**なので、
+#:   前向き全体が位相を見ない(L6 で発見した機構 — SPEC §7.15)
+#: - "harmonic": 上に加えて、学習した各チャンネルの**第一調和の係数** (a_c, b_c) を連結する。
+#:   入力を回すと (a_c, b_c) も回るので、**位相が要約に残る**
+#:
+#: 生の入力の第一調和を渡せば相手(2 特徴 kNN)の特徴そのものになってしまうので、
+#: **学習後のチャンネルに対して**取る。渡すのは「位相を見る道具」であって答えではない。
+POOL_MODE = "invariant"
+
 #: 入力をこの値(ppm)で割ってから第一層に入れる。
 #:
 #: **振幅を正規化するのではない。全例に同じ定数を掛けるので、地点間の振幅の比は保たれる。**
@@ -61,11 +72,16 @@ def init_params(seed: int, channels: int = 1, dtype=np.float32) -> dict:
         "conv1_b": zeros((WIDTH1,)),
         "conv2_w": jnp.asarray(draw((KERNEL, WIDTH1, WIDTH2), KERNEL * WIDTH1)),
         "conv2_b": zeros((WIDTH2,)),
-        "dense1_w": jnp.asarray(draw((2 * WIDTH2, DENSE), 2 * WIDTH2)),
+        "dense1_w": jnp.asarray(draw((pooled_width(), DENSE), pooled_width())),
         "dense1_b": zeros((DENSE,)),
         "dense2_w": jnp.asarray(draw((DENSE, 1), DENSE)),
         "dense2_b": zeros((1,)),
     }
+
+
+def pooled_width() -> int:
+    """要約の次元。`POOL_MODE` で決まる。"""
+    return WIDTH2 * (4 if POOL_MODE == "harmonic" else 2)
 
 
 def param_names(params: dict) -> list:
@@ -138,8 +154,18 @@ def forward_with_activations(params: dict, x):
     h2 = jnp.tanh(circular_conv1d(h1, params["conv2_w"], params["conv2_b"]))
 
     # 位置に依らない要約を取る。平均だけだと「どれだけ振れたか」が消えるので、
-    # 絶対値の最大を並べる。どちらも巡回のずらしに対して不変である。
-    pooled = jnp.concatenate([jnp.mean(h2, axis=1), jnp.max(jnp.abs(h2), axis=1)], axis=1)
+    # 絶対値の最大を並べる。**どちらも巡回のずらしに対して不変**で、
+    # invariant のままだと前向き全体が位相を見ない(SPEC §7.15)。
+    parts = [jnp.mean(h2, axis=1), jnp.max(jnp.abs(h2), axis=1)]
+    if POOL_MODE == "harmonic":
+        # 学習した各チャンネルの第一調和。入力を回すと (a, b) も回るので位相が残る。
+        length = h2.shape[1]
+        angles = 2.0 * jnp.pi * (jnp.arange(length) + 0.5) / length
+        cos = jnp.cos(angles)[None, :, None]
+        sin = jnp.sin(angles)[None, :, None]
+        parts.append(2.0 * jnp.mean(h2 * cos, axis=1))
+        parts.append(2.0 * jnp.mean(h2 * sin, axis=1))
+    pooled = jnp.concatenate(parts, axis=1)
 
     d1 = jnp.tanh(pooled @ params["dense1_w"] + params["dense1_b"])
     out = (d1 @ params["dense2_w"] + params["dense2_b"])[:, 0]

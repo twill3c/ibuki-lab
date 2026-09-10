@@ -44,6 +44,10 @@ const GATES = {
   "B-16": "F-05",
   "B-17": "F-04",
   "B-18": "G-13",
+  "B-19": "F-06",
+  "B-20": "F-07",
+  "B-21": "F-09",
+  "B-22": "G-13",
 };
 
 const results = [];
@@ -280,6 +284,31 @@ async function main() {
       ...(await overflowing(page, "svg#guess-strip")),
     ];
     report("B-18", guessOver.length === 0, `はみ出し ${guessOver.length} 件 ${guessOver.slice(0, 2).join(" ")}`);
+
+    // B-19: 解剖台の成績表が描かれ、**種の幅の線も出ている**(1 回の数字を成績と呼ばない)
+    const bars = await page.$$eval('[data-testid="score-bar"]', (els) => els.length);
+    const spreads = await page.$$eval('[data-testid="spread-bar"]', (els) => els.length);
+    report("B-19", bars >= 7 && spreads >= 2, `棒 ${bars} 本 / 幅の線 ${spreads} 本`);
+
+    // B-20: **落ちたゲートと捨てた記録が出ている**(F-07)。消していないことを見る
+    const gateText = await page.$eval('[data-testid="gate-table"]', (el) => el.textContent ?? "");
+    const discarded = await page.$$eval('[data-testid="discarded-item"]', (els) => els.length);
+    const predText = await page.$eval('[data-testid="prediction-table"]', (el) => el.textContent ?? "");
+    report("B-20",
+      gateText.includes("不通過") && discarded >= 5 && predText.includes("外れた"),
+      `不通過の掲示あり / 捨てた記録 ${discarded} 件 / 外れた予測の掲示あり`);
+
+    // B-21: CH4 の切り分けが三行そろい、入れ替え対照が**悪化**を示している
+    const ch4Rows = await page.$$eval('[data-testid="ch4-table"] tbody tr', (els) =>
+      els.map((el) => el.textContent ?? ""),
+    );
+    const shuffledRow = ch4Rows.find((t) => t.includes("入れ替え")) ?? "";
+    report("B-21", ch4Rows.length === 3 && shuffledRow.includes("+"),
+      `${ch4Rows.length} 行 / 入れ替えの差が正(悪化)`);
+
+    // B-22: 解剖台の図も viewBox に収まる
+    const boardOver = await overflowing(page, "svg#scoreboard");
+    report("B-22", boardOver.length === 0, `はみ出し ${boardOver.length} 件 ${boardOver.slice(0, 2).join(" ")}`);
 
     // B-05: 緯度梯子が描かれ、**振幅が北から南へ単調に潰れて戻る**
     const amps = await page.$$eval('[data-band]', (els) =>

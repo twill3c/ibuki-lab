@@ -392,3 +392,94 @@ def test_t011_recorded_hashes_match_files():
             pytest.skip(f"{name} が手元に無い(配布物には含めない)")
         actual = hashlib.sha256(path.read_bytes()).hexdigest()
         assert actual == recorded, f"{name}: 記録 {recorded} 実体 {actual}"
+
+
+# ---------------------------------------------------------------- T-060 (G-14)
+
+PHASE = ROOT / "data" / "phase.json"
+
+# SPEC §7.16 の行見出し → phase.json のキー。
+SPEC_PHASE_ROWS = {
+    "**1D CNN(位相あり・L7)**": "cnn_harmonic",
+    "CO2 のみ(基準)": "cnn_invariant_paired",
+    "CO2 + **本物の** CH4": "cnn_ch4_paired",
+    "CO2 + **入れ替えた** CH4": "cnn_ch4_shuffled_paired",
+}
+
+
+def _require_phase():
+    if not PHASE.exists():
+        pytest.skip("data/phase.json が無い(python -m pipeline.phase_experiment で作る)")
+    return json.loads(PHASE.read_text(encoding="utf-8"))
+
+
+def _normalise(text: str) -> str:
+    """表記ゆれを吸収する。**負号は本文で U+2212、コードでは ASCII のハイフン**になる。"""
+    return text.replace("−", "-").replace("**", "").strip()
+
+
+def _spec_rows(labels) -> dict:
+    """SPEC の表から「見出し → セルの並び」を読む。列数は表ごとに違う。"""
+    out = {}
+    for line in SPEC.read_text(encoding="utf-8").splitlines():
+        if not line.startswith("|"):
+            continue
+        cells = [_normalise(c) for c in line.strip().strip("|").split("|")]
+        if cells and cells[0] in labels:
+            out[cells[0]] = cells[1:]
+    return out
+
+
+def test_t060_spec_phase_numbers_match_report():
+    """SPEC §7.16 の数値が data/phase.json と一致する。"""
+    report = _require_phase()
+    spec = _normalise(SPEC.read_text(encoding="utf-8"))
+    rows = _spec_rows({_normalise(k) for k in SPEC_PHASE_ROWS})
+
+    for label, key in SPEC_PHASE_ROWS.items():
+        plain = _normalise(label)
+        system = report["systems"][key]
+        assert plain in rows, f"§7.16 の表から行が消えている: {plain}"
+        assert float(rows[plain][0]) == round(system["mae"], 2), (
+            f"§7.16 の {plain}: SPEC={rows[plain][0]} 報告={system['mae']:.2f}"
+        )
+
+    # 位相ありの種ごとの値と幅も文書に出ていること
+    harmonic = report["systems"]["cnn_harmonic"]
+    seeds = " / ".join(f"{m:.2f}" for m in harmonic["mae_per_seed"])
+    assert seeds in spec, f"§7.16 に種ごとの値 {seeds} が無い"
+    assert f"{harmonic['mae_spread']:.2f} 度あり" in spec, "種の幅が文書に無い"
+
+    # CH4 の分解も一致(符号つきで書いてある)
+    ch4 = report["ch4_decomposition"]
+    assert f"{ch4['real_minus_base']:+.2f}" in spec, "CH4 本物の差が文書に無い"
+    assert f"{ch4['shuffled_minus_base']:+.2f}" in spec, "入れ替えの差が文書に無い"
+
+
+def test_t060_positive_control_shifted_phase_number_is_caught():
+    """陽性対照: 報告の値をずらすと突合が撃つこと(HC-041)。"""
+    original = PHASE.read_text(encoding="utf-8")
+    tampered = json.loads(original)
+    tampered["systems"]["cnn_harmonic"]["mae"] += 1.0
+    try:
+        PHASE.write_text(json.dumps(tampered, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        with pytest.raises(AssertionError):
+            test_t060_spec_phase_numbers_match_report()
+    finally:
+        PHASE.write_text(original, encoding="utf-8")
+
+
+def test_t060_ablation_is_a_single_switch():
+    """位相ありと位相なしの重み数の差が、要約の増分ちょうどであること。
+
+    報告の側でも確かめる —— SPEC が「切替一つだけの ablation」と書いている根拠。
+    """
+    from pipeline import model
+
+    report = _require_phase()
+    harmonic = report["systems"]["cnn_harmonic"]["params"]
+    previous = json.loads((ROOT / "data" / "model.json").read_text(encoding="utf-8"))
+    invariant = previous["systems"]["cnn_co2"]["params"]
+
+    assert harmonic - invariant == model.WIDTH2 * 2 * model.DENSE
+    assert "128 個(521 → 649)" in SPEC.read_text(encoding="utf-8")

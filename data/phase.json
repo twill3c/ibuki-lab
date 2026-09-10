@@ -1,0 +1,152 @@
+{
+  "generated_from": "pipeline/phase_experiment.py",
+  "status": "complete",
+  "max_epochs": 600,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "opponent": {
+    "system": "harmonic_knn",
+    "mae": 10.954308044274603
+  },
+  "opponent_paired": {
+    "mae": 10.86385246727488
+  },
+  "previous": {
+    "cnn_co2": 12.40258569057744,
+    "cnn_co2_paired": 11.69351240066817,
+    "cnn_co2_ch4_paired": 10.759160735061329
+  },
+  "systems": {
+    "cnn_harmonic": {
+      "metric": "mae_per_site",
+      "mae": 10.708869557351932,
+      "mae_per_seed": [
+        12.467067173760492,
+        10.567501931050588,
+        9.092039567244715
+      ],
+      "mae_spread": 3.3750276065157774,
+      "mae_per_example": 11.15169531965231,
+      "channels": 1,
+      "params": 649,
+      "epochs_median": 433,
+      "epochs_max": 600,
+      "max_epochs_budget": 600,
+      "folds_at_budget": 1,
+      "folds_total": 171,
+      "n_examples": 805,
+      "n_sites": 65,
+      "n_groups": 57,
+      "pool_mode": "harmonic"
+    },
+    "cnn_invariant_paired": {
+      "metric": "mae_per_site",
+      "mae": 11.69351240066817,
+      "mae_per_seed": [
+        10.533801326254302,
+        13.165791492534938,
+        11.38094438321527
+      ],
+      "mae_spread": 2.6319901662806355,
+      "mae_per_example": 12.050185877303848,
+      "channels": 1,
+      "params": 521,
+      "epochs_median": 144.5,
+      "epochs_max": 598,
+      "max_epochs_budget": 600,
+      "folds_at_budget": 0,
+      "folds_total": 168,
+      "n_examples": 739,
+      "n_sites": 64,
+      "n_groups": 56,
+      "pool_mode": "invariant"
+    },
+    "cnn_ch4_paired": {
+      "metric": "mae_per_site",
+      "mae": 10.759160735061329,
+      "mae_per_seed": [
+        10.911361734171098,
+        10.513577684529782,
+        10.852542786483106
+      ],
+      "mae_spread": 0.39778404964131653,
+      "mae_per_example": 10.753550945475771,
+      "channels": 2,
+      "params": 561,
+      "epochs_median": 154.0,
+      "epochs_max": 577,
+      "max_epochs_budget": 600,
+      "folds_at_budget": 0,
+      "folds_total": 168,
+      "n_examples": 739,
+      "n_sites": 64,
+      "n_groups": 56,
+      "pool_mode": "invariant"
+    },
+    "cnn_ch4_shuffled_paired": {
+      "metric": "mae_per_site",
+      "mae": 14.174728380143193,
+      "mae_per_seed": [
+        13.39362013999871,
+        15.42834100501192,
+        13.702223995418949
+      ],
+      "mae_spread": 2.0347208650132096,
+      "mae_per_example": 15.094592228543599,
+      "channels": 2,
+      "params": 561,
+      "epochs_median": 123.5,
+      "epochs_max": 554,
+      "max_epochs_budget": 600,
+      "folds_at_budget": 0,
+      "folds_total": 168,
+      "n_examples": 739,
+      "n_sites": 64,
+      "n_groups": 56,
+      "pool_mode": "invariant"
+    }
+  },
+  "lr_sweep": {
+    "rows": {
+      "0.003": {
+        "val_mae": 9.004672050476074,
+        "test_mae_per_site": 11.100637507047056,
+        "epochs_median": 377,
+        "epochs_max": 594,
+        "folds_at_budget": 0,
+        "eligible": true,
+        "seconds": 507
+      },
+      "0.01": {
+        "val_mae": 8.24164867401123,
+        "test_mae_per_site": 11.988378100993664,
+        "epochs_median": 91,
+        "epochs_max": 596,
+        "folds_at_budget": 0,
+        "eligible": true,
+        "seconds": 692
+      },
+      "0.03": {
+        "val_mae": 7.694334030151367,
+        "test_mae_per_site": 12.467067173760492,
+        "epochs_median": 29,
+        "epochs_max": 529,
+        "folds_at_budget": 0,
+        "eligible": true,
+        "seconds": 441
+      }
+    },
+    "chosen_lr": 0.03,
+    "chosen_by": "val_mae(予算内に折り返した候補のみ)",
+    "seed": 0,
+    "max_epochs": 600
+  },
+  "ch4_decomposition": {
+    "real_minus_base": -0.934351665606842,
+    "shuffled_minus_base": 2.4812159794750226,
+    "note": "入れ替えた CH4 でも同じだけ下がるなら、効いていたのは情報でなく「第 2 チャンネルがある」ことである"
+  }
+}
