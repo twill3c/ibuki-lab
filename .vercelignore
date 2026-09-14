@@ -1,0 +1,11 @@
+# 生データ・仮想環境・ビルド物は送らない。先頭を / で固定する(深い階層の public/data を消さない)
+/data/raw/
+/.venv/
+/node_modules/
+/.next/
+/out/
+/logs/
+/.env*
+/.vercel/
+/harness-kit/
+/.pytest_cache/

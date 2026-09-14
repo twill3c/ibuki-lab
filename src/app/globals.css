@@ -178,3 +178,28 @@ button {
   background: var(--panel);
   cursor: pointer;
 }
+
+/* fleet: fixed footer */
+.fleet-footer {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  background: var(--paper);
+  border-top: 1px solid var(--line);
+  padding: 0.45rem 1rem;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--ink-faint);
+  text-align: center;
+}
+
+.fleet-footer a {
+  color: var(--ink-soft);
+}
+
+.fleet-footer .sep {
+  margin: 0 0.35rem;
+  color: var(--ink-faint);
+}

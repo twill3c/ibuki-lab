@@ -26,8 +26,20 @@ export type Screen4 = {
   };
   ch4: { real_minus_base: number; shuffled_minus_base: number; note: string } | null;
   ch4_systems: Record<string, { mae: number; spread: number }>;
+  nested: {
+    train_fraction: number;
+    harmonic: NestedRow;
+    invariant: NestedRow;
+    summary: string[];
+  } | null;
+  ch4_components: {
+    rows: { label: string; mae: number; spread: number; retained: number; seeds_agree: boolean; side: string }[];
+    summary: string;
+  } | null;
   verification: { two_implementation: string; browser_checks: number };
 };
+
+type NestedRow = { mae: number; spread: number; stop_rule_mae: number; seeds: number[] };
 
 const BAR_W = 660;
 const ROW_H = 30;
@@ -168,6 +180,48 @@ export default function Dissection({ data }: { data: Screen4 }) {
         **学習率という別の軸の比較には使えない**。規則は動かさず、限界を記録する。
       </p>
 
+      {data.nested && (
+        <>
+          <h4>選び方を nested にして測り直した</h4>
+          <p className="note">
+            止め時を選ぶ分割と学習率を選ぶ分割を分け、fold ごとに学習率を選んだ。
+            訓練に回る群は {Math.round(data.nested.train_fraction * 100)}% に減るので、
+            全部で学ぶ相手に対しては<strong>模型に不利な向き</strong>の比較である。
+            判定の線は測る前に書いた。
+          </p>
+          <div className="figure-scroll">
+            <table data-testid="nested-table">
+              <thead>
+                <tr>
+                  <th>要約</th>
+                  <th>nested で選んだ MAE</th>
+                  <th>種の幅</th>
+                  <th>同じ重みを止め時の分割で選んだ MAE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(["harmonic", "invariant"] as const).map((key) => {
+                  const row = data.nested![key];
+                  return (
+                    <tr key={key}>
+                      <td>{key === "harmonic" ? "位相あり" : "位相なし"}</td>
+                      <td>{row.mae.toFixed(2)}</td>
+                      <td>{row.spread.toFixed(2)}</td>
+                      <td>{row.stop_rule_mae.toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          {data.nested.summary.map((line) => (
+            <p className="note" key={line}>
+              {line}
+            </p>
+          ))}
+        </>
+      )}
+
       {data.ch4 && (
         <>
           <h3>CH4 は情報を足したのか、チャンネルが増えただけか</h3>
@@ -205,6 +259,41 @@ export default function Dissection({ data }: { data: Screen4 }) {
             </table>
           </div>
           <p className="note">{data.ch4.note}</p>
+        </>
+      )}
+
+      {data.ch4_components && (
+        <>
+          <h4>CH4 の何が効いたのか —— 要素を一つずつ潰した</h4>
+          <div className="figure-scroll">
+            <table data-testid="ch4-components-table">
+              <thead>
+                <tr>
+                  <th>対照</th>
+                  <th>MAE(度)</th>
+                  <th>種の幅</th>
+                  <th>効き目の残り r</th>
+                  <th>3 種の側</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.ch4_components.rows.map((r) => (
+                  <tr key={r.label}>
+                    <td>{r.label}</td>
+                    <td>{r.mae.toFixed(2)}</td>
+                    <td>{r.spread.toFixed(2)}</td>
+                    <td>{r.retained.toFixed(2)}</td>
+                    <td>{r.side}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="note">
+            r = (基準 − 対照) ÷ (基準 − 本物)。1 なら本物の CH4 と同じだけ効き、0 なら CH4 が無いのと同じ。
+            {" "}
+            {data.ch4_components.summary}
+          </p>
         </>
       )}
 

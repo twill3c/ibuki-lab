@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +18,128 @@ OUT = ROOT / "public" / "data" / "screen4.json"
 
 def load(name: str) -> dict:
     return json.loads((ROOT / "data" / name).read_text(encoding="utf-8"))
+
+
+CH4_CONTROL_LABELS = {
+    "cnn_ch4_rotated_paired": "CH4 を巡回でずらした(CO2 との位相差を壊す)",
+    "cnn_ch4_equalised_paired": "CH4 の振幅を揃えた(振幅の大小を消す)",
+}
+
+
+def browser_check_count() -> int:
+    """実ブラウザ検品の件数は、検品器の GATES 表から数える。
+
+    手で書いた 19 が、検品を 23 件に増やした後も古いまま画面に出ていた(L8 で発見)。
+    """
+    source = (ROOT / "scripts" / "browser_check.mjs").read_text(encoding="utf-8")
+    return len(re.findall(r'^\s*"B-\d+[a-z]?":', source, flags=re.M))
+
+
+def load_nested() -> dict | None:
+    """L8 の測定。**走り終わっていない報告は出さない**(途中の数を判定として見せない)。"""
+    path = ROOT / "data" / "nested.json"
+    if not path.exists():
+        return None
+    nested = json.loads(path.read_text(encoding="utf-8"))
+    return nested if nested.get("status") == "complete" else None
+
+
+def nested_block(nested: dict) -> dict:
+    harmonic = nested["nested"]["harmonic"]
+    invariant = nested["nested"]["invariant"]
+    v = nested["verdicts"]
+    opponent = nested["opponent_mae"]
+    gap = opponent - harmonic["mae"]
+    spread = harmonic["mae_spread"]
+
+    lines = []
+    if v["p07_beats_beyond_spread"]:
+        lines.append(f"P-07: 位相ありは相手の {opponent:.2f} 度を {gap:.2f} 度下回り、差が種の幅 {spread:.2f} 度を超えた。")
+    elif v["p07_numerically"]:
+        lines.append(
+            f"P-07: 位相ありは相手の {opponent:.2f} 度を {gap:.2f} 度下回ったが、"
+            f"種の幅 {spread:.2f} 度より小さい差なので「上回った」とは言わない。"
+        )
+    else:
+        lines.append(f"P-07: 位相ありは {harmonic['mae']:.2f} 度で、相手の {opponent:.2f} 度を下回らなかった。")
+    lines.append(
+        f"P-08: 位相ありの種の幅は L7 の {nested['l7']['harmonic_spread']:.2f} 度から {spread:.2f} 度へ"
+        + ("縮んだ。" if v["p08"] else "縮まなかった。")
+    )
+    reversed_seeds = [r["seed"] for r in harmonic["seeds"] if r["mae_stop_rule"] < r["mae"]]
+    lines.append(
+        f"P-09: 同じ重みの上で、選ぶ分割で選ぶと {harmonic['mae']:.2f} 度、"
+        f"止め時の分割で選ぶと {harmonic['mae_stop_rule']:.2f} 度。"
+        + ("平均では分けたほうが良かった。" if v["p09"] else "分けても良くならなかった。")
+        + (f"ただし種 {'・'.join(str(s) for s in reversed_seeds)} では逆だった。" if reversed_seeds else "")
+    )
+    diff = invariant["mae"] - harmonic["mae"]
+    lines.append(
+        f"P-11: nested でも位相あり {harmonic['mae']:.2f} 度 対 位相なし {invariant['mae']:.2f} 度。"
+        + ("位相の効果は向きが保たれた。" if v["p11"] else "位相の効果は残らなかった。")
+        + (
+            f"ただし差 {diff:.2f} 度は位相なしの種の幅 {invariant['mae_spread']:.2f} 度より小さく、大きさは確かでない。"
+            if v["p11"] and diff < invariant["mae_spread"] else ""
+        )
+    )
+
+    def row(entry: dict) -> dict:
+        return {
+            "mae": entry["mae"],
+            "spread": entry["mae_spread"],
+            "stop_rule_mae": entry["mae_stop_rule"],
+            "seeds": entry["mae_per_seed"],
+        }
+
+    return {
+        "train_fraction": 1 - nested["stop_fraction"] - nested["select_fraction"],
+        "harmonic": row(harmonic),
+        "invariant": row(invariant),
+        "summary": lines,
+        "verdicts": v,
+    }
+
+
+def ch4_components_block(nested: dict) -> dict:
+    d = nested["ch4_decomposition"]
+    rows = []
+    for key, label in CH4_CONTROL_LABELS.items():
+        c = d["controls"][key]
+        sides = c["closer_to_real_per_seed"]
+        if all(sides):
+            side = "3 種とも本物寄り"
+        elif not any(sides):
+            side = "3 種とも基準寄り"
+        else:
+            side = f"揃わない(本物寄り {sum(sides)}/3)"
+        rows.append({
+            "label": label, "mae": c["mae"], "spread": c["spread"], "retained": c["retained"],
+            "seeds_agree": c["all_seeds_agree"], "side": side,
+        })
+    r_eq = d["controls"]["cnn_ch4_equalised_paired"]["retained"]
+    r_rot = d["controls"]["cnn_ch4_rotated_paired"]["retained"]
+    tail = f"(振幅を揃えた r={r_eq:.2f}・巡回でずらした r={r_rot:.2f})"
+    if d["p10_identified"]:
+        summary = "P-10 は成立。振幅を揃えると効き目が消え、位相差を壊しても残り、3 種とも同じ側に落ちた" + tail + "。"
+    elif d["p10_holds_numerically"]:
+        summary = "P-10 は数の上では成立。r は予測の側に出たが種ごとの側が揃わず、要素を特定したとは言わない" + tail + "。"
+    else:
+        controls = d["controls"]
+        direction = "予測と逆向きで、" if r_rot < r_eq else ""
+        summary = (
+            f"P-10 は外れた。{direction}振幅を揃えても r={r_eq:.2f}、CO2 との位相差を壊すと r={r_rot:.2f} だった。"
+            + (
+                "種ごとの側が揃わない対照があるので、何が効き目を運んでいるかは特定しない。"
+                if not all(c["all_seeds_agree"] for c in controls.values())
+                else ""
+            )
+        )
+    return {
+        "rows": rows,
+        "summary": summary,
+        "p10_holds_numerically": d["p10_holds_numerically"],
+        "p10_identified": d["p10_identified"],
+    }
 
 
 def main() -> int:
@@ -99,6 +222,37 @@ def main() -> int:
         {"id": "P-07", "text": "位相を見える要約に替えると 2 特徴 kNN を下回る", "verdict": "後述"},
     ]
 
+    nested = load_nested()
+    if nested is not None:
+        v = nested["verdicts"]
+        h = nested["nested"]["harmonic"]
+        if not v["p07_numerically"]:
+            discarded.append({
+                "title": "L7 の「相手と並んだ」は、偏った選定規則の上の数だった",
+                "loop": "L8",
+                "detail": f"学習率を fold ごとに、止め時とは別の分割で選び直すと、位相ありは {h['mae']:.2f} 度で"
+                          f"相手の {nested['opponent_mae']:.2f} 度を下回らなかった。種の幅は "
+                          f"{nested['l7']['harmonic_spread']:.2f} → {h['mae_spread']:.2f} 度に縮んで数は安定したが、"
+                          f"L7 の {nested['l7']['harmonic_mae']:.2f} 度は残らなかった",
+            })
+        for p in predictions:
+            if p["id"] == "P-07":
+                p["verdict"] = (
+                    "上回った(nested)" if v["p07_beats_beyond_spread"]
+                    else "数の上では成立(nested でも)" if v["p07_numerically"]
+                    else "不成立(nested)"
+                )
+        predictions += [
+            {"id": "P-08", "text": "学習率の選定を nested にすると、位相ありの種の幅が縮む",
+             "verdict": "成立" if v["p08"] else "外れた"},
+            {"id": "P-09", "text": "止め時と学習率選びの分割を分けると、選んだ学習率の試験誤差が良くなる",
+             "verdict": "成立" if v["p09"] else "外れた"},
+            {"id": "P-10", "text": "CH4 の効き目は振幅が運んでいる",
+             "verdict": "成立" if v["p10_identified"] else "数の上では成立" if v["p10_numerically"] else "外れた"},
+            {"id": "P-11", "text": "nested にしても、位相ありは位相なしを下回る",
+             "verdict": "成立" if v["p11"] else "外れた"},
+        ]
+
     payload = {
         "generated_from": "pipeline/build_screen4.py",
         "opponent": {"system": opponent, "mae": opponent_mae},
@@ -127,9 +281,11 @@ def main() -> int:
             for name in ("cnn_invariant_paired", "cnn_ch4_paired", "cnn_ch4_shuffled_paired")
             if name in phase["systems"]
         },
+        "nested": nested_block(nested) if nested is not None else None,
+        "ch4_components": ch4_components_block(nested) if nested is not None else None,
         "verification": {
             "two_implementation": "float64 どうし 1e-9・出荷経路は無次元化した 1e-6",
-            "browser_checks": 19,
+            "browser_checks": browser_check_count(),
         },
     }
 

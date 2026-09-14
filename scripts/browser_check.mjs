@@ -48,7 +48,18 @@ const GATES = {
   "B-20": "F-07",
   "B-21": "F-09",
   "B-22": "G-13",
+  "B-23": "F-07",
+  "B-24": "N-05",
+  "B-24c": "N-05",
 };
+
+/** フッタの文言がこの並びで出ているか。**文字の位置が昇順か**だけを見る。 */
+function inOrder(text, labels) {
+  const at = labels.map((l) => text.indexOf(l));
+  return at.every((i) => i >= 0) && at.every((i, k) => k === 0 || i > at[k - 1]);
+}
+
+const FOOTER_ORDER = ["MIT License", "© 2026 坂田哲朗", "GitHub", "息吹ラボの歩き方", "設計図", "App Menu"];
 
 const results = [];
 function report(id, ok, detail) {
@@ -309,6 +320,65 @@ async function main() {
     // B-22: 解剖台の図も viewBox に収まる
     const boardOver = await overflowing(page, "svg#scoreboard");
     report("B-22", boardOver.length === 0, `はみ出し ${boardOver.length} 件 ${boardOver.slice(0, 2).join(" ")}`);
+
+    // B-23: nested で測り直した表と、CH4 の要素の表が出ている(数が入っている)
+    const nestedRows = await page.$$eval('[data-testid="nested-table"] tbody tr', (els) =>
+      els.map((el) => el.textContent ?? ""),
+    );
+    const componentRows = await page.$$eval('[data-testid="ch4-components-table"] tbody tr', (els) =>
+      els.map((el) => el.textContent ?? ""),
+    );
+    report("B-23",
+      nestedRows.length === 2 && nestedRows.every((t) => /\d+\.\d{2}/.test(t)) &&
+        componentRows.length === 2 && componentRows.every((t) => /\d+\.\d{2}/.test(t)),
+      `nested ${nestedRows.length} 行 / CH4 の要素 ${componentRows.length} 行`);
+
+    // B-24: フリート共通フッタ。**要素名でなく中身で選ぶ**(MIT License と App Menu の両方を含む最小の要素)。
+    // 並び・行き先・下部固定・本文を隠さないことを、描画した DOM で見る
+    await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+    await page.waitForTimeout(100);
+    const footer = await page.evaluate(() => {
+      const candidates = [...document.querySelectorAll("footer, nav, div")].filter((el) => {
+        const t = el.textContent ?? "";
+        return t.includes("App Menu") && t.includes("MIT License");
+      });
+      candidates.sort((a, b) => (a.textContent ?? "").length - (b.textContent ?? "").length);
+      const el = candidates[0];
+      if (!el) return null;
+      const r = el.getBoundingClientRect();
+      const sources = document.querySelector("footer.fleet")?.getBoundingClientRect();
+      return {
+        text: el.innerText,
+        position: getComputedStyle(el).position,
+        top: r.top,
+        bottom: r.bottom,
+        viewport: window.innerHeight,
+        sourcesBottom: sources ? sources.bottom : null,
+        links: Object.fromEntries([...el.querySelectorAll("a")].map((a) => [a.textContent.trim(), a.getAttribute("href")])),
+      };
+    });
+    const footerOk =
+      footer !== null &&
+      inOrder(footer.text, FOOTER_ORDER) &&
+      footer.position === "fixed" &&
+      Math.abs(footer.bottom - footer.viewport) <= 1 &&
+      footer.links["App Menu"] === "https://app-menu-amber.vercel.app/" &&
+      footer.links["GitHub"] === "https://github.com/twill3c/ibuki-lab" &&
+      footer.links["MIT License"] === "https://github.com/twill3c/ibuki-lab/blob/main/LICENSE" &&
+      /^https:\/\/claude\.ai\/code\/artifact\/[0-9a-f-]{36}$/.test(footer.links["息吹ラボの歩き方"] ?? "") &&
+      /^https:\/\/claude\.ai\/code\/artifact\/[0-9a-f-]{36}$/.test(footer.links["設計図"] ?? "") &&
+      footer.sourcesBottom !== null && footer.sourcesBottom <= footer.top + 1;
+    report("B-24", footerOk,
+      footer
+        ? `並び ${inOrder(footer.text, FOOTER_ORDER) ? "規約どおり" : "違う"} / ${footer.position} / ` +
+          `下端 ${footer.bottom.toFixed(0)}/${footer.viewport} / 本文の末尾 ${footer.sourcesBottom?.toFixed(0)} ≤ フッタ上端 ${footer.top.toFixed(0)}`
+        : "フッタが見つからない");
+
+    // B-24c 陽性対照: 並べ替えた文言は並びの検査で落ちる(検査が常に真を返していないこと)
+    report("B-24c",
+      !inOrder("App Menu ・ 設計図 ・ 息吹ラボの歩き方 ・ GitHub ・ MIT License © 2026 坂田哲朗", FOOTER_ORDER),
+      "逆順のフッタ文言を不合格にする");
+    await page.evaluate(() => window.scrollTo(0, 0));
 
     // B-05: 緯度梯子が描かれ、**振幅が北から南へ単調に潰れて戻る**
     const amps = await page.$$eval('[data-band]', (els) =>

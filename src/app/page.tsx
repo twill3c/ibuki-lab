@@ -62,6 +62,19 @@ export default function Page() {
           解析と検査の記録は SPEC.md にある。
         </p>
       </footer>
+
+      {/* フリート共通フッタ(koho-lens 準拠 5 項目・この並び・下部固定) */}
+      <nav className="fleet-footer" aria-label="フリート共通フッタ">
+        <a href="https://github.com/twill3c/ibuki-lab/blob/main/LICENSE">MIT License</a> © 2026 坂田哲朗
+        <span className="sep" aria-hidden="true">・</span>
+        <a href="https://github.com/twill3c/ibuki-lab">GitHub</a>
+        <span className="sep" aria-hidden="true">・</span>
+        <a href="https://claude.ai/code/artifact/f2d07c3f-9cef-4095-a7cd-8f45abb2caa3">息吹ラボの歩き方</a>
+        <span className="sep" aria-hidden="true">・</span>
+        <a href="https://claude.ai/code/artifact/377ec55b-4315-4421-ba4a-a603400142ab">設計図</a>
+        <span className="sep" aria-hidden="true">・</span>
+        <a href="https://app-menu-amber.vercel.app/">App Menu</a>
+      </nav>
     </main>
   );
 }

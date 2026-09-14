@@ -15,6 +15,7 @@
 """
 from __future__ import annotations
 
+import dataclasses
 import json
 import statistics
 import time
@@ -414,6 +415,174 @@ def shuffled_second_channel(paired, second, seed: int = 20260910):
             order[i], order[j] = order[j], order[i]
     assert not any(order[i] == i for i in range(len(order))), "入れ替わっていない例がある"
     return [second[j] for j in order]
+
+
+# ------------------------------------------------------------------ L8: CH4 の要素を潰す対照
+
+def rotated_second_channel(second, seed: int = 20260914):
+    """CH4 を地点年ごとに**巡回でずらす**。振幅と形は本物のまま、CO2 との位相差だけを壊す。
+
+    位相なしの模型は二つのチャンネルを**揃って**回すことには不変だが、片方だけを回すと
+    チャンネル間のずれとして見える。ずらし幅は 6〜18 ビン(四半期〜四分の三年)に限る ——
+    1 ビンずらしでは位相差がほとんど壊れず、対照が何も言わなくなる。
+    """
+    rng = np.random.default_rng(seed)
+    out = []
+    for s in second:
+        shift = int(rng.integers(6, 19))
+        out.append(dataclasses.replace(s, values=tuple(np.roll(np.asarray(s.values), shift).tolist())))
+    return out
+
+
+def equalised_second_channel(second):
+    """CH4 の振幅を地点年ごとに**揃える**。形と CO2 との位相差は本物のまま、振幅の大小だけを消す。
+
+    揃える先は全例の標準偏差の中央値にする。入力の桁を本物と同じに保たないと、
+    「振幅が消えた」のか「桁が変わって学習が変わった」のかが分けられない。
+    """
+    stds = [float(np.std(np.asarray(s.values))) for s in second]
+    assert min(stds) > 0, "振幅 0 の曲線は揃えられない"
+    target = float(np.median(stds))
+    return [
+        dataclasses.replace(s, values=tuple((np.asarray(s.values) / sd * target).tolist()))
+        for s, sd in zip(second, stds)
+    ]
+
+
+# ------------------------------------------------------------------ L8: 学習率の nested 選定
+
+#: 外側の訓練群から切る二つの分割の割合。**止め時を選ぶ分割**と**学習率を選ぶ分割**は排他。
+#: L7 では一つの内側検証を両方に使っていたので、学習率が高いほど内側検証の谷を深く掘れ、
+#: その値は学習率の比較に使えなかった(SPEC §7.16)。**測る前に決めて動かさない。**
+NESTED_STOP_FRACTION = 0.2
+NESTED_SELECT_FRACTION = 0.2
+
+
+def nested_masks(examples, seed: int):
+    """fold ごとの (訓練, 止め時, 選定) の 0/1 重みを作る。三つは排他で、試験側はどれにも乗らない。"""
+    groups = [ex.group for ex in examples]
+    folds = curves.leave_one_group_out(examples)
+    shape = (len(folds), len(examples))
+    train_w = np.zeros(shape, dtype=np.float32)
+    stop_w = np.zeros(shape, dtype=np.float32)
+    select_w = np.zeros(shape, dtype=np.float32)
+    for f, (train_idx, test_idx) in enumerate(folds):
+        held = groups[test_idx[0]]
+        pool = sorted({g for g in groups if g != held})
+        rng = np.random.default_rng(20260914 + seed)
+        rng.shuffle(pool)
+        n_stop = max(1, int(round(len(pool) * NESTED_STOP_FRACTION)))
+        n_select = max(1, int(round(len(pool) * NESTED_SELECT_FRACTION)))
+        stop = set(pool[:n_stop])
+        select = set(pool[n_stop:n_stop + n_select])
+        for i in train_idx:
+            if groups[i] in stop:
+                stop_w[f, i] = 1.0
+            elif groups[i] in select:
+                select_w[f, i] = 1.0
+            else:
+                train_w[f, i] = 1.0
+    return folds, train_w, stop_w, select_w
+
+
+def choose_per_fold(scores_by_lr: dict) -> list:
+    """fold ごとに、渡された誤差が最小の学習率を返す。**渡されたもの以外は見ない。**
+
+    選定に使う誤差だけを引数に取る形にしておくと、試験側が入り込む経路がコードの上で無くなる。
+    """
+    keys = list(scores_by_lr)
+    matrix = np.stack([np.asarray(scores_by_lr[k], dtype=np.float64) for k in keys])
+    return [keys[i] for i in np.argmin(matrix, axis=0)]
+
+
+def run_nested(examples, x, y, channels: int, seed: int) -> dict:
+    """学習率の三候補を同じ初期値から学習し、fold ごとに選ぶ分割で学習率を選ぶ。
+
+    返り値には、同じ重みの上で **L7 の規則(止め時の分割で選ぶ)** を当てた予測も入れる。
+    重みが同じなので、二つの差は選定規則だけの差になる(P-09)。
+    """
+    global LEARNING_RATE
+    folds, train_w, stop_w, select_w = nested_masks(examples, seed)
+    groups = [ex.group for ex in examples]
+    n = len(examples)
+
+    # 排他の検算。止め時の分割が選定に漏れていたら、L7 の偏りがそのまま残る。
+    assert float(np.max(train_w + stop_w + select_w)) <= 1.0, "分割が重なっている"
+    for f, (_, test_idx) in enumerate(folds):
+        assert not np.any(train_w[f, test_idx] + stop_w[f, test_idx] + select_w[f, test_idx]), (
+            "試験側に重みが乗っている"
+        )
+
+    stacked = jax.tree.map(
+        lambda *leaves: jnp.stack(leaves),
+        *[model.init_params(seed * 1000 + f, channels=channels) for f in range(len(folds))],
+    )
+    xj, yj = jnp.asarray(x), jnp.asarray(y)
+    fold_mae = jax.jit(jax.vmap(masked_mae, in_axes=(0, None, None, 0)))
+
+    per_lr = {}
+    original = LEARNING_RATE
+    try:
+        for lr in LR_CANDIDATES:
+            LEARNING_RATE = lr
+            started = time.time()
+            trainer = _make_trainer()
+            best_params, best_stop, best_epochs = trainer(
+                stacked, xj, yj, jnp.asarray(train_w), jnp.asarray(stop_w)
+            )
+            preds = np.full(n, np.nan, dtype=np.float64)
+            for f, (_, test_idx) in enumerate(folds):
+                fold_params = jax.tree.map(lambda leaf: leaf[f], best_params)
+                preds[test_idx] = np.asarray(model.forward(fold_params, jnp.asarray(x[test_idx])))
+            assert not np.isnan(preds).any(), "予測されていない例がある"
+            epochs = [int(e) for e in np.asarray(best_epochs)]
+            per_lr[f"{lr:g}"] = {
+                "preds": preds,
+                "stop_mae": np.asarray(best_stop, dtype=np.float64),
+                "select_mae": np.asarray(fold_mae(best_params, xj, yj, jnp.asarray(select_w)), dtype=np.float64),
+                "epochs": epochs,
+                "folds_at_budget": sum(1 for e in epochs if e >= MAX_EPOCHS),
+                "seconds": round(time.time() - started),
+            }
+            print(f"    lr={lr:g}: {per_lr[f'{lr:g}']['seconds']} 秒", flush=True)
+    finally:
+        LEARNING_RATE = original
+
+    def assemble(chosen):
+        out = np.full(n, np.nan, dtype=np.float64)
+        for f, (_, test_idx) in enumerate(folds):
+            out[test_idx] = per_lr[chosen[f]]["preds"][test_idx]
+        return out
+
+    chosen_select = choose_per_fold({k: v["select_mae"] for k, v in per_lr.items()})
+    chosen_stop = choose_per_fold({k: v["stop_mae"] for k, v in per_lr.items()})
+    return {
+        "preds": assemble(chosen_select),
+        "preds_stop_rule": assemble(chosen_stop),
+        "chosen": chosen_select,
+        "chosen_stop_rule": chosen_stop,
+        "held_out": [groups[test_idx[0]] for _, test_idx in folds],
+        "per_lr": per_lr,
+    }
+
+
+def summarise_nested(examples, y, result: dict, seed: int) -> dict:
+    """一つの種の nested 結果を、報告に書ける形(numpy を含まない要約)に落とす。"""
+    everyone = range(len(examples))
+    return {
+        "seed": seed,
+        "mae": _per_site_mae(examples, everyone, result["preds"], y),
+        "mae_stop_rule": _per_site_mae(examples, everyone, result["preds_stop_rule"], y),
+        "mae_fixed_lr": {
+            k: _per_site_mae(examples, everyone, v["preds"], y) for k, v in result["per_lr"].items()
+        },
+        "chosen": dict(zip(result["held_out"], result["chosen"])),
+        "chosen_counts": {k: result["chosen"].count(k) for k in result["per_lr"]},
+        "chosen_stop_rule_counts": {k: result["chosen_stop_rule"].count(k) for k in result["per_lr"]},
+        "epochs_median": {k: statistics.median(v["epochs"]) for k, v in result["per_lr"].items()},
+        "folds_at_budget": {k: v["folds_at_budget"] for k, v in result["per_lr"].items()},
+        "seconds": sum(v["seconds"] for v in result["per_lr"].values()),
+    }
 
 
 def main() -> int:

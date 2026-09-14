@@ -483,3 +483,77 @@ def test_t060_ablation_is_a_single_switch():
 
     assert harmonic - invariant == model.WIDTH2 * 2 * model.DENSE
     assert "128 個(521 → 649)" in SPEC.read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------- T-064 (G-14)
+
+NESTED = ROOT / "data" / "nested.json"
+
+# SPEC §7.18 の行見出し → nested.json の系。セルは [MAE, 種ごと, 幅, 止め時の規則の MAE]。
+SPEC_NESTED_ROWS = {
+    "**1D CNN(位相あり・nested)**": "harmonic",
+    "1D CNN(位相なし・nested)": "invariant",
+}
+
+# SPEC §7.18 の行見出し → CH4 の対照。セルは [MAE, 種の幅, 残り r]。
+SPEC_CH4_COMPONENT_ROWS = {
+    "CO2 + **巡回でずらした** CH4": "cnn_ch4_rotated_paired",
+    "CO2 + **振幅を揃えた** CH4": "cnn_ch4_equalised_paired",
+}
+
+
+def _require_nested():
+    if not NESTED.exists():
+        pytest.skip("data/nested.json が無い(python -m pipeline.nested_experiment で作る)")
+    report = json.loads(NESTED.read_text(encoding="utf-8"))
+    if report.get("status") != "complete":
+        pytest.skip("data/nested.json が走り終わっていない")
+    return report
+
+
+def _check_nested_numbers(report: dict) -> None:
+    """SPEC §7.18 の数値が報告と一致する。**報告を引数で受ける**ので、陽性対照は正本を触らずに済む。"""
+    spec = _normalise(SPEC.read_text(encoding="utf-8"))
+    rows = _spec_rows({_normalise(k) for k in SPEC_NESTED_ROWS} | {_normalise(k) for k in SPEC_CH4_COMPONENT_ROWS})
+
+    for label, key in SPEC_NESTED_ROWS.items():
+        plain = _normalise(label)
+        entry = report["nested"][key]
+        assert plain in rows, f"§7.18 の表から行が消えている: {plain}"
+        cells = rows[plain]
+        assert float(cells[0]) == round(entry["mae"], 2), f"{plain}: SPEC={cells[0]} 報告={entry['mae']:.2f}"
+        assert cells[1] == " / ".join(f"{m:.2f}" for m in entry["mae_per_seed"]), f"{plain}: 種ごとの値が違う"
+        assert float(cells[2]) == round(entry["mae_spread"], 2), f"{plain}: 幅が違う"
+        assert float(cells[3]) == round(entry["mae_stop_rule"], 2), f"{plain}: 止め時の規則の値が違う"
+
+    for label, key in SPEC_CH4_COMPONENT_ROWS.items():
+        plain = _normalise(label)
+        system = report["ch4_systems"][key]
+        control = report["ch4_decomposition"]["controls"][key]
+        assert plain in rows, f"§7.18 の表から行が消えている: {plain}"
+        cells = rows[plain]
+        assert float(cells[0]) == round(system["mae"], 2), f"{plain}: SPEC={cells[0]} 報告={system['mae']:.2f}"
+        assert float(cells[1]) == round(system["mae_spread"], 2), f"{plain}: 幅が違う"
+        assert float(cells[2]) == round(control["retained"], 2), f"{plain}: 残り r が違う"
+
+    rep = report["reproduction"]
+    assert f"{rep['mae']:.4f}" in spec, "再現の検算の値が §7.18 に無い"
+
+
+def test_t064_spec_nested_numbers_match_report():
+    _check_nested_numbers(_require_nested())
+
+
+def test_t064_positive_control_shifted_nested_number_is_caught():
+    """陽性対照: 報告の値をずらした写しを渡すと突合が撃つ(正本は触らない)。"""
+    report = _require_nested()
+    for mutate in (
+        lambda r: r["nested"]["harmonic"].__setitem__("mae", r["nested"]["harmonic"]["mae"] + 1.0),
+        lambda r: r["ch4_decomposition"]["controls"]["cnn_ch4_equalised_paired"].__setitem__(
+            "retained", r["ch4_decomposition"]["controls"]["cnn_ch4_equalised_paired"]["retained"] + 0.5
+        ),
+    ):
+        tampered = json.loads(json.dumps(report))
+        mutate(tampered)
+        with pytest.raises(AssertionError):
+            _check_nested_numbers(tampered)
