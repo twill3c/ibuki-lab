@@ -160,10 +160,12 @@ export default function BreathingEarth({ data }: { data: Screen1 }) {
                       fill={colourFor(v, cap)}
                       data-testid="heat-cell"
                     >
+                      {/* title の子は文字列一本にする。JSX で並べると子のテキスト節点が分かれ、
+                          React 19 がサーバの HTML と食い違って描画をやり直す(#418・loop_008 の本番検品で発見) */}
                       <title>
-                        {labelForBand(row.from, row.to)} / {binToMonthLabel(i, data.n_bins)} /{" "}
-                        {(row.values as number[])[i]?.toFixed(2)} ppm / {row.codes.length} 地点
-                        {row.codes.length ? ` (${row.codes.join(", ")})` : ""}
+                        {`${labelForBand(row.from, row.to)} / ${binToMonthLabel(i, data.n_bins)} / ` +
+                          `${(row.values as number[])[i]?.toFixed(2)} ppm / ${row.codes.length} 地点` +
+                          (row.codes.length ? ` (${row.codes.join(", ")})` : "")}
                       </title>
                     </rect>
                   ))

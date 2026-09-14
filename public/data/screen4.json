@@ -289,6 +289,6 @@
  },
  "verification": {
   "two_implementation": "float64 どうし 1e-9・出荷経路は無次元化した 1e-6",
-  "browser_checks": 26
+  "browser_checks": 28
  }
 }

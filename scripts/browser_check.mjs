@@ -51,6 +51,8 @@ const GATES = {
   "B-23": "F-07",
   "B-24": "N-05",
   "B-24c": "N-05",
+  "B-25": "G-15",
+  "B-25c": "G-15",
 };
 
 /** フッタの文言がこの並びで出ているか。**文字の位置が昇順か**だけを見る。 */
@@ -163,6 +165,9 @@ async function main() {
   try {
     const page = await browser.newPage({ viewport: { width: 1280, height: 1000 } });
     page.on("request", (r) => requested.push(r.url()));
+    // 実行時エラーはページを開く前から拾う。描画の食い違い(React #418)は読み込み直後に一度だけ出る
+    const pageErrors = [];
+    page.on("pageerror", (e) => pageErrors.push(String(e)));
     await page.goto(base, { waitUntil: "networkidle" });
 
     // B-01: 帯が実際に描かれている。**数だけでなく、色が一様でないこと**を見る ——
@@ -413,6 +418,17 @@ async function main() {
       requested.filter((u) => !u.startsWith(base) && !u.startsWith("data:")).map((u) => new URL(u).host),
     );
     report("B-09", foreign.size === 0, `外部 host ${[...foreign].join(",") || "0 件"}`);
+
+    // B-25: ここまでの操作を通して実行時エラーが 0 件。**幾何と到達だけを見る検品は、
+    // 描画をやり直した後の画面でも全部緑になる**(loop_008: React #418 を本番検品で初めて見つけた)
+    const errorsSeen = [...pageErrors];
+    report("B-25", errorsSeen.length === 0,
+      `実行時エラー ${errorsSeen.length} 件 ${errorsSeen.slice(0, 1).join("").slice(0, 120)}`);
+
+    // B-25c 陽性対照: わざと投げた例外を拾えること(聞き耳が付いていない検査は常に 0 件を返す)
+    await page.evaluate(() => setTimeout(() => { throw new Error("positive-control"); }, 0));
+    await page.waitForTimeout(150);
+    report("B-25c", pageErrors.some((e) => e.includes("positive-control")), "わざと投げた例外を拾う");
 
     // B-10: 三つの画面幅で溢れず、縦に伸びすぎない(N-03)
     const widths = [360, 768, 1280];

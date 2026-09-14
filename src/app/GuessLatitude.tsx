@@ -163,9 +163,10 @@ export default function GuessLatitude({
                 fill={saliencyColour(contributions[i] as number, cap)}
                 data-testid="saliency-cell"
               >
+                {/* title の子は文字列一本にする(React #418・svg-title.test.ts) */}
                 <title>
-                  {monthLabel(i, curve.length)} / 値 {v.toFixed(2)} ppm / 寄与{" "}
-                  {(contributions[i] as number).toFixed(2)} 度
+                  {`${monthLabel(i, curve.length)} / 値 ${v.toFixed(2)} ppm / 寄与 ` +
+                    `${(contributions[i] as number).toFixed(2)} 度`}
                 </title>
               </rect>
             ))}
