@@ -203,3 +203,9 @@ button {
   margin: 0 0.35rem;
   color: var(--ink-faint);
 }
+
+/* 固定フッタの下に、スクロールやフォーカスで寄せた操作部品が隠れないようにする。
+   iPhone 13 相当で「年内の位置」のスライダーがフッタの下に入り、タップがフッタのリンクに当たった(B-26) */
+html {
+  scroll-padding-bottom: 5.5rem;
+}

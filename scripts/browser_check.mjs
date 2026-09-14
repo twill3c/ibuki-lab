@@ -53,7 +53,38 @@ const GATES = {
   "B-24c": "N-05",
   "B-25": "G-15",
   "B-25c": "G-15",
+  "B-26": "N-03",
+  "B-26c": "N-03",
 };
+
+// 固定フッタに覆われてはいけない操作部品
+const CONTROLS = [
+  "normalise-toggle", "bin-slider", "south-toggle", "detrend-toggle", "jma-toggle",
+  "curve-select", "factor-slider", "shift-slider", "reset-morph",
+];
+
+/** 各操作部品を画面の下端へ寄せ(block: nearest)、その中心に当たる要素が部品自身かを返す。 */
+async function obscuredControls(page) {
+  return page.evaluate((ids) => {
+    const bad = [];
+    for (const id of ids) {
+      window.scrollTo(0, 0);
+      const el = document.querySelector(`[data-testid="${id}"]`);
+      if (!el) {
+        bad.push(`${id}: 無い`);
+        continue;
+      }
+      el.scrollIntoView({ block: "nearest" });
+      const r = el.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      if (!(hit === el || el.contains(hit) || hit?.closest("label")?.contains(el))) {
+        bad.push(`${id}: ${hit ? hit.tagName + "." + (hit.className || "") : "null"} に覆われる`);
+      }
+    }
+    window.scrollTo(0, 0);
+    return bad;
+  }, CONTROLS);
+}
 
 /** フッタの文言がこの並びで出ているか。**文字の位置が昇順か**だけを見る。 */
 function inOrder(text, labels) {
@@ -429,6 +460,20 @@ async function main() {
     await page.evaluate(() => setTimeout(() => { throw new Error("positive-control"); }, 0));
     await page.waitForTimeout(150);
     report("B-25c", pageErrors.some((e) => e.includes("positive-control")), "わざと投げた例外を拾う");
+
+    // B-26: スマホの幅で操作部品を画面の下端へ寄せても、固定フッタに覆われない。
+    // iPhone 13 相当で「年内の位置」のスライダーがフッタの下に入り、タップがフッタのリンクに当たった
+    await page.setViewportSize({ width: 390, height: 664 });
+    await page.waitForTimeout(120);
+    const covered = await obscuredControls(page);
+    report("B-26", covered.length === 0, `覆われる部品 ${covered.length} 件 ${covered.slice(0, 2).join(" / ")}`);
+
+    // B-26c 陽性対照: スクロールの余白を 0 に戻すと、覆われる部品が出る(検査が常に 0 を返していない)
+    await page.evaluate(() => { document.documentElement.style.scrollPaddingBottom = "0px"; });
+    const coveredWithout = await obscuredControls(page);
+    await page.evaluate(() => { document.documentElement.style.scrollPaddingBottom = ""; });
+    report("B-26c", coveredWithout.length > 0, `余白 0 で覆われる部品 ${coveredWithout.length} 件`);
+    await page.setViewportSize({ width: 1280, height: 1000 });
 
     // B-10: 三つの画面幅で溢れず、縦に伸びすぎない(N-03)
     const widths = [360, 768, 1280];
