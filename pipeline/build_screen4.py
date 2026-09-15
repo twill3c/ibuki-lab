@@ -222,6 +222,18 @@ def main() -> int:
         {"id": "P-07", "text": "位相を見える要約に替えると 2 特徴 kNN を下回る", "verdict": "後述"},
     ]
 
+    closing_path = ROOT / "data" / "closing.json"
+    closing = json.loads(closing_path.read_text(encoding="utf-8")) if closing_path.exists() else None
+    if closing is not None and closing.get("status") == "complete":
+        p04, p05 = closing["p04"], closing["p05"]
+        predictions += [
+            {"id": "P-04", "text": "誤差は南半球と熱帯で大きい",
+             "verdict": "成立" if p04["sayable"] else "数の上では成立" if p04["holds_numerically"] else "外れた"},
+            {"id": "P-05", "text": "平滑済みの月次で学習すると、2 特徴回帰との差はさらに縮む",
+             "verdict": "成立" if p05["sayable"] else "数の上では成立" if p05["holds_numerically"] else "外れた"},
+        ]
+        predictions.sort(key=lambda p: p["id"])
+
     nested = load_nested()
     if nested is not None:
         v = nested["verdicts"]

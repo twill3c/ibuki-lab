@@ -557,3 +557,75 @@ def test_t064_positive_control_shifted_nested_number_is_caught():
         mutate(tampered)
         with pytest.raises(AssertionError):
             _check_nested_numbers(tampered)
+
+
+# ---------------------------------------------------------------- T-069 (G-14)
+
+CLOSING = ROOT / "data" / "closing.json"
+
+# SPEC §7.20 の P-04 の表: 行見出し → 緯度帯。セルは [地点数, CNN の地点誤差の平均, kNN の地点誤差の平均]。
+SPEC_P04_ROWS = {
+    "北の中高緯度(23.44 度以上)": "北の中高緯度",
+    "熱帯": "熱帯",
+    "南の中高緯度(−23.44 度以下)": "南の中高緯度",
+}
+
+# SPEC §7.20 の P-05 の表: 行見出し → (CNN の系, kNN の系)。セルは [CNN, kNN, 差]。
+SPEC_P05_ROWS = {
+    "event(生の測定)": ("cnn_invariant_805", "knn_805"),
+    "**月次(平滑済み)**": ("cnn_month_monthpop", "knn_month_monthpop"),
+}
+
+
+def _require_closing():
+    if not CLOSING.exists():
+        pytest.skip("data/closing.json が無い(python -m pipeline.closing_experiment で作る)")
+    report = json.loads(CLOSING.read_text(encoding="utf-8"))
+    if report.get("status") != "complete":
+        pytest.skip("data/closing.json が走り終わっていない")
+    return report
+
+
+def _check_closing_numbers(report: dict) -> None:
+    """SPEC §7.20 の数値が報告と一致する。報告を引数で受け、陽性対照は写しで撃つ。"""
+    spec = _normalise(SPEC.read_text(encoding="utf-8"))
+    rows = _spec_rows({_normalise(k) for k in SPEC_P04_ROWS} | {_normalise(k) for k in SPEC_P05_ROWS})
+
+    for label, band in SPEC_P04_ROWS.items():
+        plain = _normalise(label)
+        assert plain in rows, f"§7.20 の表から行が消えている: {plain}"
+        cells = rows[plain]
+        cnn = report["p04"]["cnn_bands"][band]
+        knn = report["p04"]["knn_bands"][band]
+        assert int(cells[0]) == cnn["sites"], f"{plain}: 地点数が違う"
+        assert float(cells[1]) == round(cnn["mean"], 2), f"{plain}: CNN の値が違う SPEC={cells[1]} 報告={cnn['mean']:.2f}"
+        assert float(cells[2]) == round(knn["mean"], 2), f"{plain}: kNN の値が違う"
+
+    for label, (cnn_key, knn_key) in SPEC_P05_ROWS.items():
+        plain = _normalise(label)
+        assert plain in rows, f"§7.20 の表から行が消えている: {plain}"
+        cells = rows[plain]
+        cnn = report["systems"][cnn_key]["mae"]
+        knn = report["systems"][knn_key]["mae"]
+        assert float(cells[0]) == round(cnn, 2), f"{plain}: CNN の値が違う"
+        assert float(cells[1]) == round(knn, 2), f"{plain}: kNN の値が違う"
+        assert float(cells[2]) == round(cnn - knn, 2), f"{plain}: 差が違う"
+
+    p = report["p04"]["permutation"]["p"]
+    assert f"p = {p:.4f}" in spec, "置換検定の p が §7.20 に無い"
+
+
+def test_t069_spec_closing_numbers_match_report():
+    _check_closing_numbers(_require_closing())
+
+
+def test_t069_positive_control_shifted_closing_number_is_caught():
+    report = _require_closing()
+    for mutate in (
+        lambda r: r["p04"]["cnn_bands"]["熱帯"].__setitem__("mean", r["p04"]["cnn_bands"]["熱帯"]["mean"] + 1.0),
+        lambda r: r["systems"]["cnn_month_monthpop"].__setitem__("mae", r["systems"]["cnn_month_monthpop"]["mae"] + 1.0),
+    ):
+        tampered = json.loads(json.dumps(report))
+        mutate(tampered)
+        with pytest.raises(AssertionError):
+            _check_closing_numbers(tampered)

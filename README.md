@@ -108,6 +108,24 @@
   「効くなら振幅」という事前登録 P-10 は逆向きで外れた。位相差を壊した側は種で揃っておらず、要素は特定しない
 - **CH4 について事前に書いた予測は、P-03 も P-10 も外れている**
 
+## 残っていた二つの予測も判定した(L10)
+
+L0 に書いたまま判定の線を数で決めていなかった P-04 と P-05 を、線を先に書いてから測った。
+L2 と同じ条件の測り直しは、3 種とも L2 の値と差 0.0 で一致した。
+
+| 緯度帯 | 地点数 | 1D CNN の地点誤差 | 2 特徴 kNN(参考) |
+|---|---|---|---|
+| 北の中高緯度 | 40 | 10.00 | 8.14 |
+| 熱帯 | 14 | 11.36 | 13.05 |
+| 南の中高緯度 | 11 | 22.46 | 18.52 |
+
+- **P-04(誤差は南半球と熱帯で大きい)— 数の上では成立。** ただし置換検定は p = 0.106 で、言えるとまでは書かない。
+  2 特徴 kNN でも同じ形なので、偏りは模型よりも年周曲線という手がかりの側にあると読める
+- **P-05(平滑済みの月次で学ぶと 2 特徴との差が縮む)— 数の上では成立。** 差は 1.45 → 0.58 度に縮んだが、
+  縮み方は CNN の種の幅 2.16 に届かない。しかも縮んだのは kNN が悪くなった分を含み、予測の根拠とは食い違う向きだった
+
+**事前に書いた予測 P-01〜P-11 は、これですべて判定が付いた。**
+
 詳細と、言えないことの範囲は [SPEC.md](SPEC.md) §7 にある。
 
 ## 画面と解説
@@ -148,6 +166,7 @@ python -m pipeline.report_bands      # 船舶帯の検算の内訳を出す
 .venv/Scripts/python.exe -m pipeline.experiment    # data/model.json(数十分)
 .venv/Scripts/python.exe -m pipeline.phase_experiment   # data/phase.json(L7・数時間)
 .venv/Scripts/python.exe -u -m pipeline.nested_experiment > logs/l8_run.log 2>&1   # data/nested.json(L8・数時間・再開できる)
+.venv/Scripts/python.exe -u -m pipeline.closing_experiment > logs/l10_run.log 2>&1  # data/closing.json(L10・P-04 / P-05)
 .venv/Scripts/python.exe -m pipeline.build_screen4 # 画面④のデータ(①〜③は build_screen1〜3)
 .venv/Scripts/python.exe -m pytest                 # 検査
 ```
@@ -171,7 +190,8 @@ NOAA のデータは標準ガスの再校正等により改訂されうる。上
 
 ## 進み方
 
-7 段階ループプロトコルで進めた。L0〜L8 の 9 ループで完了(2026-09-15)。各ループの記録は
+7 段階ループプロトコルで進めた。L0〜L8 の 9 ループで完了(2026-09-15)し、L9 で app-menu に掲載、
+L10 で残っていた予測 P-04 / P-05 を判定した(2026-09-16)。各ループの記録は
 [logs/loops/](logs/loops/) に追記専用で残る。計画と実績は SPEC §9。
 `loop_007.jsonl` は先頭の `loop_start` が欠けている。追記専用のログは先頭に挿入できないので、
 欠落のまま残し、`loop_008.jsonl` に失敗として記録してある。
